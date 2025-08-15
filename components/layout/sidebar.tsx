@@ -1,32 +1,28 @@
-"use client"
+"use client";
 
-import { useRouter, usePathname } from "next/navigation"
-import { Button } from "@/components/ui/button"
+import { useRouter, usePathname } from "next/navigation";
+import { Button } from "@/components/ui/button";
 
 const navigation = [
-  { name: "Home", icon: "home", href: "/dashboard" },
   { name: "Reports", icon: "clipboard", href: "/reports" },
   { name: "Materials", icon: "package", href: "/materials" },
   { name: "Comments", icon: "message", href: "/comments" },
   { name: "Locations", icon: "location", href: "/locations" },
-  { name: "Analytics", icon: "chart", href: "/analytics" },
-  { name: "Team", icon: "users", href: "/team" },
-  { name: "Settings", icon: "settings", href: "/settings" },
-]
+];
 
 export function Sidebar() {
-  const router = useRouter()
-  const pathname = usePathname()
+  const router = useRouter();
+  const pathname = usePathname();
 
   const handleLogout = () => {
-    localStorage.removeItem("isAuthenticated")
-    localStorage.removeItem("user")
-    router.push("/")
-  }
+    localStorage.removeItem("isAuthenticated");
+    localStorage.removeItem("user");
+    router.push("/");
+  };
 
   const handleNavigation = (href: string) => {
-    router.push(href)
-  }
+    router.push(href);
+  };
 
   return (
     <div className="flex flex-col h-full bg-white border-r border-gray-200">
@@ -34,7 +30,12 @@ export function Sidebar() {
       <div className="flex items-center h-16 px-6 border-b border-gray-200">
         <div className="flex items-center">
           <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg
+              className="w-4 h-4 text-white"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -43,7 +44,9 @@ export function Sidebar() {
               />
             </svg>
           </div>
-          <span className="ml-3 text-lg font-semibold text-gray-900">PestHub</span>
+          <span className="ml-3 text-lg font-semibold text-gray-900">
+            PestHub
+          </span>
         </div>
       </div>
 
@@ -55,7 +58,7 @@ export function Sidebar() {
             (item.href === "/reports" && pathname.startsWith("/reports")) ||
             (item.href === "/materials" && pathname.startsWith("/materials")) ||
             (item.href === "/comments" && pathname.startsWith("/comments")) ||
-            (item.href === "/locations" && pathname.startsWith("/locations"))
+            (item.href === "/locations" && pathname.startsWith("/locations"));
 
           return (
             <button
@@ -70,7 +73,7 @@ export function Sidebar() {
               <NavIcon name={item.icon} className="w-5 h-5 mr-3" />
               {item.name}
             </button>
-          )
+          );
         })}
       </nav>
 
@@ -85,12 +88,17 @@ export function Sidebar() {
             <p className="text-xs text-gray-500">Technician</p>
           </div>
         </div>
-        <Button variant="outline" size="sm" className="w-full bg-transparent" onClick={handleLogout}>
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full bg-transparent"
+          onClick={handleLogout}
+        >
           Sign out
         </Button>
       </div>
     </div>
-  )
+  );
 }
 
 function NavIcon({ name, className }: { name: string; className: string }) {
@@ -159,11 +167,16 @@ function NavIcon({ name, className }: { name: string; className: string }) {
         d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
       />
     ),
-  }
+  };
 
   return (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
       {icons[name as keyof typeof icons]}
     </svg>
-  )
+  );
 }

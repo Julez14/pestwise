@@ -14,20 +14,33 @@ const navigation = [
 export function Sidebar() {
   const router = useRouter();
   const pathname = usePathname();
-  const { signOut } = useAuth();
+  const { signOut, profile, loading } = useAuth();
 
   const handleLogout = async () => {
     try {
+      console.log("Logout button clicked");
       await signOut();
-      // The auth state change listener will automatically redirect to login
+      console.log("Sign out completed, redirecting to login");
+      // Navigate to login page after successful sign out
       router.push("/");
     } catch (error) {
-      console.error("Error signing out:", error);
+      console.error("Error during logout:", error);
+      // Even if sign out fails, try to redirect to login
+      router.push("/");
     }
   };
 
   const handleNavigation = (href: string) => {
     router.push(href);
+  };
+
+  // Generate initials from user name
+  const getInitials = (name: string) => {
+    return name
+      .split(" ")
+      .map((word) => word.charAt(0).toUpperCase())
+      .join("")
+      .slice(0, 2);
   };
 
   return (
@@ -87,11 +100,25 @@ export function Sidebar() {
       <div className="p-4 border-t border-gray-200">
         <div className="flex items-center mb-3">
           <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
-            <span className="text-sm font-medium text-gray-700">JD</span>
+            <span className="text-sm font-medium text-gray-700">
+              {loading
+                ? "..."
+                : profile?.name
+                ? getInitials(profile.name)
+                : "U"}
+            </span>
           </div>
           <div className="ml-3">
-            <p className="text-sm font-medium text-gray-900">John Doe</p>
-            <p className="text-xs text-gray-500">Technician</p>
+            <p className="text-sm font-medium text-gray-900">
+              {loading ? "Loading..." : profile?.name || "Unknown User"}
+            </p>
+            <p className="text-xs text-gray-500">
+              {loading
+                ? ""
+                : profile?.role
+                ? profile.role.charAt(0).toUpperCase() + profile.role.slice(1)
+                : "User"}
+            </p>
           </div>
         </div>
         <Button

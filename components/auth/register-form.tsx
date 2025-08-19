@@ -11,21 +11,39 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { useAuth } from "@/contexts/auth-context";
 
-export function LoginForm() {
+export function RegisterForm() {
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const router = useRouter();
-  const { signIn } = useAuth();
+  const { signUp } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
+    setSuccess(null);
+
+    // Validate passwords match
+    if (password !== confirmPassword) {
+      setError("Passwords do not match");
+      setIsLoading(false);
+      return;
+    }
+
+    // Validate password strength
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters long");
+      setIsLoading(false);
+      return;
+    }
 
     try {
-      const { error } = await signIn(email, password);
+      const { error } = await signUp(email, password, name);
 
       if (error) {
         setError(error.message);
@@ -33,8 +51,22 @@ export function LoginForm() {
         return;
       }
 
-      // Successful login - redirect to reports
-      router.push("/reports");
+      // Successful registration
+      setSuccess(
+        "Registration successful! Please check your email to confirm your account."
+      );
+      setIsLoading(false);
+
+      // Clear form
+      setName("");
+      setEmail("");
+      setPassword("");
+      setConfirmPassword("");
+
+      // Redirect to login after 3 seconds
+      setTimeout(() => {
+        router.push("/");
+      }, 3000);
     } catch (err) {
       setError("An unexpected error occurred. Please try again.");
       setIsLoading(false);
@@ -45,9 +77,9 @@ export function LoginForm() {
     <Card className="border-0 shadow-lg">
       <CardHeader className="space-y-1 pb-4">
         <div className="space-y-2">
-          <h2 className="text-xl font-semibold">Welcome back</h2>
+          <h2 className="text-xl font-semibold">Create your account</h2>
           <p className="text-sm text-muted-foreground">
-            Enter your credentials to access your account
+            Enter your details to get started with PestHub
           </p>
         </div>
       </CardHeader>
@@ -58,6 +90,23 @@ export function LoginForm() {
               {error}
             </div>
           )}
+          {success && (
+            <div className="p-3 text-sm text-green-600 bg-green-50 border border-green-200 rounded-md">
+              {success}
+            </div>
+          )}
+          <div className="space-y-2">
+            <Label htmlFor="name">Full Name</Label>
+            <Input
+              id="name"
+              type="text"
+              placeholder="John Doe"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+              className="h-11"
+            />
+          </div>
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input
@@ -75,9 +124,21 @@ export function LoginForm() {
             <Input
               id="password"
               type="password"
-              placeholder="Enter your password"
+              placeholder="Create a strong password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              required
+              className="h-11"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="confirmPassword">Confirm Password</Label>
+            <Input
+              id="confirmPassword"
+              type="password"
+              placeholder="Confirm your password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
               required
               className="h-11"
             />
@@ -87,38 +148,19 @@ export function LoginForm() {
             className="w-full h-11 bg-orange-500 hover:bg-orange-600 text-white font-medium"
             disabled={isLoading}
           >
-            {isLoading ? "Signing in..." : "Sign in"}
+            {isLoading ? "Creating account..." : "Create account"}
           </Button>
         </form>
         <div className="mt-6 text-center">
           <p className="text-sm text-muted-foreground">
-            Don't have an account?{" "}
+            Already have an account?{" "}
             <Link
-              href="/register"
+              href="/"
               className="text-orange-500 hover:underline font-medium"
             >
-              Sign up
+              Sign in
             </Link>
           </p>
-        </div>
-        <div className="mt-4 text-left">
-          <p className="text-sm text-muted-foreground">
-            Use the test credentials from your database
-          </p>
-          <div className="text-xs text-muted-foreground mt-1">
-            <p>
-              <strong>Test Emails:</strong>
-            </p>
-            <ul className="ml-4 mt-1 space-y-1">
-              <li>emily.davis@pestcontrol.com</li>
-              <li>mike.chen@pestcontrol.com</li>
-              <li>sarah.johnson@pestcontrol.com</li>
-              <li>john.doe@pestcontrol.com</li>
-            </ul>
-            <p className="mt-2">
-              <strong>Password:</strong> TestPassword123!
-            </p>
-          </div>
         </div>
       </CardContent>
     </Card>

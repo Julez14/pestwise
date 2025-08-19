@@ -17,6 +17,11 @@ interface AuthContextType {
   profile: Profile | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
+  signUp: (
+    email: string,
+    password: string,
+    name: string
+  ) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
 }
 
@@ -111,8 +116,56 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const signUp = async (email: string, password: string, name: string) => {
+    try {
+      console.log("Attempting to sign up with:", email);
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            name: name,
+          },
+        },
+      });
+
+      if (error) {
+        console.error("Sign up error:", error);
+        return { error };
+      }
+
+      console.log("Sign up successful", data);
+      return { error: null };
+    } catch (err) {
+      console.error("Sign up exception:", err);
+      return { error: err };
+    }
+  };
+
   const signOut = async () => {
-    await supabase.auth.signOut();
+    try {
+      console.log("Signing out...");
+
+      // Clear local state immediately
+      setUser(null);
+      setProfile(null);
+
+      // Sign out from Supabase
+      const { error } = await supabase.auth.signOut();
+
+      if (error) {
+        console.error("Error signing out:", error);
+        throw error;
+      }
+
+      console.log("Successfully signed out");
+    } catch (error) {
+      console.error("Failed to sign out:", error);
+      // Even if there's an error, clear local state
+      setUser(null);
+      setProfile(null);
+      throw error;
+    }
   };
 
   const value = {
@@ -120,6 +173,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     profile,
     loading,
     signIn,
+    signUp,
     signOut,
   };
 

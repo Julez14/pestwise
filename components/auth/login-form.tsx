@@ -8,32 +8,36 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { useAuth } from "@/contexts/auth-context";
 
 export function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const { signIn } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setError(null);
 
-    // Simulate authentication
-    setTimeout(() => {
-      setIsLoading(false);
-      // Store auth state in localStorage for demo
-      localStorage.setItem("isAuthenticated", "true");
-      localStorage.setItem(
-        "user",
-        JSON.stringify({
-          name: "John Doe",
-          email: email,
-          role: "Technician",
-        })
-      );
+    try {
+      const { error } = await signIn(email, password);
+
+      if (error) {
+        setError(error.message);
+        setIsLoading(false);
+        return;
+      }
+
+      // Successful login - redirect to reports
       router.push("/reports");
-    }, 1000);
+    } catch (err) {
+      setError("An unexpected error occurred. Please try again.");
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -48,6 +52,11 @@ export function LoginForm() {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
+          {error && (
+            <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md">
+              {error}
+            </div>
+          )}
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input
@@ -80,9 +89,19 @@ export function LoginForm() {
             {isLoading ? "Signing in..." : "Sign in"}
           </Button>
         </form>
-        <div className="mt-6 text-center">
+        <div className="mt-6 text-left">
           <p className="text-sm text-muted-foreground">
-            Demo credentials: any email/password combination
+            Use the test credentials from your database
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            <strong>Test Emails:</strong>
+            <ul>
+              <li>emily.davis@pestcontrol.com</li>
+              <li>mike.chen@pestcontrol.com</li>
+              <li>sarah.johnson@pestcontrol.com</li>
+              <li>john.doe@pestcontrol.com</li>
+            </ul>
+            <strong>Password:</strong> TestPassword123!
           </p>
         </div>
       </CardContent>

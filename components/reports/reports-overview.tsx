@@ -1,102 +1,134 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { supabase } from "@/lib/supabase/client";
 
-const mockReports = [
-  {
-    id: 1,
-    title: "Kitchen Inspection - Unit 4B",
-    description: "Routine pest inspection in kitchen area",
-    location: "Building A, Unit 4B",
-    author: "John Doe",
-    updatedAt: "2024-01-20",
-    status: "completed",
-    pestFindings: 2,
-  },
-  {
-    id: 2,
-    title: "Basement Treatment - Building C",
-    description: "Follow-up treatment for rodent activity",
-    location: "Building C, Basement",
-    author: "Sarah Johnson",
-    updatedAt: "2024-01-19",
-    status: "in-progress",
-    pestFindings: 1,
-  },
-  {
-    id: 3,
-    title: "Quarterly Inspection - Cafeteria",
-    description: "Scheduled quarterly pest control inspection",
-    location: "Main Building, Cafeteria",
-    author: "Mike Chen",
-    updatedAt: "2024-01-18",
-    status: "draft",
-    pestFindings: 0,
-  },
-  {
-    id: 4,
-    title: "Emergency Response - Unit 2A",
-    description: "Emergency pest control response call",
-    location: "Building B, Unit 2A",
-    author: "Emily Davis",
-    updatedAt: "2024-01-17",
-    status: "completed",
-    pestFindings: 3,
-  },
-  {
-    id: 5,
-    title: "Preventive Treatment - Storage",
-    description: "Preventive pest control treatment",
-    location: "Storage Building",
-    author: "John Doe",
-    updatedAt: "2024-01-16",
-    status: "in-progress",
-    pestFindings: 1,
-  },
-]
+interface Report {
+  id: number;
+  title: string;
+  description: string | null;
+  location_name: string;
+  unit: string | null;
+  author_name: string;
+  updated_at: string;
+  status: string;
+  pest_findings_count: number;
+}
 
 export function ReportsOverview() {
-  const [searchQuery, setSearchQuery] = useState("")
-  const [statusFilter, setStatusFilter] = useState("all")
-  const router = useRouter()
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [reports, setReports] = useState<Report[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
 
-  const filteredReports = mockReports.filter((report) => {
+  useEffect(() => {
+    fetchReports();
+  }, []);
+
+  const fetchReports = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const { data, error } = await supabase
+        .from("report_details")
+        .select("*")
+        .order("updated_at", { ascending: false });
+
+      if (error) {
+        throw error;
+      }
+
+      setReports(data || []);
+    } catch (err) {
+      console.error("Error fetching reports:", err);
+      setError("Failed to load reports");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredReports = reports.filter((report) => {
+    const location = report.unit
+      ? `${report.location_name}, ${report.unit}`
+      : report.location_name;
     const matchesSearch =
       report.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      report.location.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesStatus = statusFilter === "all" || report.status === statusFilter
-    return matchesSearch && matchesStatus
-  })
+      location.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus =
+      statusFilter === "all" || report.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  // Calculate stats from real data
+  const totalReports = reports.length;
+  const draftReports = reports.filter((r) => r.status === "draft").length;
+  const inProgressReports = reports.filter(
+    (r) => r.status === "in-progress"
+  ).length;
+  const completedReports = reports.filter(
+    (r) => r.status === "completed"
+  ).length;
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case "completed":
-        return "bg-green-100 text-green-800"
+        return "bg-green-100 text-green-800";
       case "in-progress":
-        return "bg-blue-100 text-blue-800"
+        return "bg-blue-100 text-blue-800";
       case "draft":
-        return "bg-orange-100 text-orange-800"
+        return "bg-orange-100 text-orange-800";
       default:
-        return "bg-gray-100 text-gray-800"
+        return "bg-gray-100 text-gray-800";
     }
-  }
+  };
 
   const getStatusLabel = (status: string) => {
     switch (status) {
       case "completed":
-        return "Completed"
+        return "Completed";
       case "in-progress":
-        return "In Progress"
+        return "In Progress";
       case "draft":
-        return "Draft"
+        return "Draft";
       default:
-        return status
+        return status;
     }
+  };
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto"></div>
+            <p className="text-gray-600 mt-2">Loading reports...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <p className="text-red-600 mb-4">{error}</p>
+            <Button onClick={fetchReports} variant="outline">
+              Try Again
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -104,10 +136,17 @@ export function ReportsOverview() {
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="hidden lg:block">
-          <h1 className="text-2xl font-bold text-gray-900">Report Management</h1>
-          <p className="text-gray-600 mt-1">Manage and track all your reports in one place</p>
+          <h1 className="text-2xl font-bold text-gray-900">
+            Report Management
+          </h1>
+          <p className="text-gray-600 mt-1">
+            Manage and track all your reports in one place
+          </p>
         </div>
-        <Button className="bg-orange-500 hover:bg-orange-600 text-white" onClick={() => router.push("/reports/add")}>
+        <Button
+          className="bg-orange-500 hover:bg-orange-600 text-white"
+          onClick={() => router.push("/reports/add")}
+        >
           Add Report
         </Button>
       </div>
@@ -118,11 +157,18 @@ export function ReportsOverview() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Reports</p>
-                <p className="text-2xl font-bold text-gray-900">5</p>
+                <p className="text-sm text-gray-600">Total Reports</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {totalReports}
+                </p>
               </div>
               <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg
+                  className="w-6 h-6 text-blue-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -139,11 +185,18 @@ export function ReportsOverview() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Reports</p>
-                <p className="text-2xl font-bold text-gray-900">1</p>
+                <p className="text-sm text-gray-600">In Progress</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {inProgressReports}
+                </p>
               </div>
               <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg
+                  className="w-6 h-6 text-orange-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -160,12 +213,24 @@ export function ReportsOverview() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Reports</p>
-                <p className="text-2xl font-bold text-gray-900">0</p>
+                <p className="text-sm text-gray-600">Completed</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {completedReports}
+                </p>
               </div>
               <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                <svg
+                  className="w-6 h-6 text-green-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 13l4 4L19 7"
+                  />
                 </svg>
               </div>
             </div>
@@ -210,10 +275,19 @@ export function ReportsOverview() {
                 <div className="flex-1">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <h3 className="font-medium text-gray-900">{report.title}</h3>
-                      <p className="text-sm text-gray-600 mt-1">{report.description}</p>
+                      <h3 className="font-medium text-gray-900">
+                        {report.title}
+                      </h3>
+                      <p className="text-sm text-gray-600 mt-1">
+                        {report.description || "No description"}
+                      </p>
                       <div className="flex items-center mt-2 text-xs text-gray-500">
-                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg
+                          className="w-4 h-4 mr-1"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
                           <path
                             strokeLinecap="round"
                             strokeLinejoin="round"
@@ -227,23 +301,33 @@ export function ReportsOverview() {
                             d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
                           />
                         </svg>
-                        <span>{report.location}</span>
+                        <span>
+                          {report.unit
+                            ? `${report.location_name}, ${report.unit}`
+                            : report.location_name}
+                        </span>
                         <span className="mx-2">•</span>
-                        <span>{report.author}</span>
+                        <span>{report.author_name}</span>
                         <span className="mx-2">•</span>
-                        <span>Updated {report.updatedAt}</span>
-                        {report.pestFindings > 0 && (
+                        <span>
+                          Updated{" "}
+                          {new Date(report.updated_at).toLocaleDateString()}
+                        </span>
+                        {report.pest_findings_count > 0 && (
                           <>
                             <span className="mx-2">•</span>
                             <span className="text-red-600 font-medium">
-                              {report.pestFindings} pest finding{report.pestFindings > 1 ? "s" : ""}
+                              {report.pest_findings_count} pest finding
+                              {report.pest_findings_count > 1 ? "s" : ""}
                             </span>
                           </>
                         )}
                       </div>
                     </div>
                     <div className="flex items-center space-x-2 ml-4">
-                      <Badge className={getStatusColor(report.status)}>{getStatusLabel(report.status)}</Badge>
+                      <Badge className={getStatusColor(report.status)}>
+                        {getStatusLabel(report.status)}
+                      </Badge>
                     </div>
                   </div>
                 </div>
@@ -253,5 +337,5 @@ export function ReportsOverview() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

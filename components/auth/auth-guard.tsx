@@ -37,6 +37,9 @@ export function AuthGuard({
         <div className="text-center">
           <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-muted-foreground">Loading...</p>
+          <p className="text-xs text-muted-foreground mt-2">
+            If this takes too long, check the browser console for errors
+          </p>
         </div>
       </div>
     );

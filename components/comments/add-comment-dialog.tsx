@@ -1,31 +1,41 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useState } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
+import { useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 interface Comment {
-  content: string
-  author: string
-  category: string
-  location?: string
-  reportId?: string
-  priority: "low" | "medium" | "high"
+  content: string;
+  author: string;
+  category: string;
+  location?: string;
+  reportId?: string;
+  priority: "low" | "medium" | "high";
 }
 
 interface AddCommentDialogProps {
-  isOpen: boolean
-  onClose: () => void
-  onAdd: (comment: Comment) => void
-  availableCategories: string[]
+  isOpen: boolean;
+  onClose: () => void;
+  onAdd: (comment: Comment) => void;
+  availableCategories: string[];
 }
 
-export function AddCommentDialog({ isOpen, onClose, onAdd, availableCategories }: AddCommentDialogProps) {
+export function AddCommentDialog({
+  isOpen,
+  onClose,
+  onAdd,
+  availableCategories,
+}: AddCommentDialogProps) {
   const [formData, setFormData] = useState<Comment>({
     content: "",
     author: "John Doe", // In a real app, this would come from auth context
@@ -33,19 +43,19 @@ export function AddCommentDialog({ isOpen, onClose, onAdd, availableCategories }
     location: "",
     reportId: "",
     priority: "medium",
-  })
+  });
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
 
     if (formData.content.trim()) {
       const commentToAdd = {
         ...formData,
         location: formData.location || undefined,
         reportId: formData.reportId || undefined,
-      }
+      };
 
-      onAdd(commentToAdd)
+      onAdd(commentToAdd);
 
       // Reset form
       setFormData({
@@ -55,11 +65,11 @@ export function AddCommentDialog({ isOpen, onClose, onAdd, availableCategories }
         location: "",
         reportId: "",
         priority: "medium",
-      })
+      });
 
-      onClose()
+      onClose();
     }
-  }
+  };
 
   const handleClose = () => {
     // Reset form when closing
@@ -70,9 +80,9 @@ export function AddCommentDialog({ isOpen, onClose, onAdd, availableCategories }
       location: "",
       reportId: "",
       priority: "medium",
-    })
-    onClose()
-  }
+    });
+    onClose();
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
@@ -87,7 +97,9 @@ export function AddCommentDialog({ isOpen, onClose, onAdd, availableCategories }
               id="content"
               placeholder="Enter your observation, note, or comment..."
               value={formData.content}
-              onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, content: e.target.value })
+              }
               rows={4}
               required
               className="resize-none"
@@ -100,7 +112,9 @@ export function AddCommentDialog({ isOpen, onClose, onAdd, availableCategories }
               <select
                 id="category"
                 value={formData.category}
-                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, category: e.target.value })
+                }
                 className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
               >
@@ -117,7 +131,12 @@ export function AddCommentDialog({ isOpen, onClose, onAdd, availableCategories }
               <select
                 id="priority"
                 value={formData.priority}
-                onChange={(e) => setFormData({ ...formData, priority: e.target.value as "low" | "medium" | "high" })}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    priority: e.target.value as "low" | "medium" | "high",
+                  })
+                }
                 className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
               >
@@ -134,7 +153,9 @@ export function AddCommentDialog({ isOpen, onClose, onAdd, availableCategories }
               id="location"
               placeholder="e.g., Building A - Kitchen, Unit 4B"
               value={formData.location}
-              onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, location: e.target.value })
+              }
             />
           </div>
 
@@ -144,7 +165,9 @@ export function AddCommentDialog({ isOpen, onClose, onAdd, availableCategories }
               id="reportId"
               placeholder="e.g., RPT-001"
               value={formData.reportId}
-              onChange={(e) => setFormData({ ...formData, reportId: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, reportId: e.target.value })
+              }
             />
           </div>
 
@@ -159,5 +182,5 @@ export function AddCommentDialog({ isOpen, onClose, onAdd, availableCategories }
         </form>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

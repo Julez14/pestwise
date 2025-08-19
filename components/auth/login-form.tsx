@@ -93,16 +93,20 @@ export function LoginForm() {
           <p className="text-sm text-muted-foreground">
             Use the test credentials from your database
           </p>
-          <p className="text-xs text-muted-foreground mt-1">
-            <strong>Test Emails:</strong>
-            <ul>
+          <div className="text-xs text-muted-foreground mt-1">
+            <p>
+              <strong>Test Emails:</strong>
+            </p>
+            <ul className="ml-4 mt-1 space-y-1">
               <li>emily.davis@pestcontrol.com</li>
               <li>mike.chen@pestcontrol.com</li>
               <li>sarah.johnson@pestcontrol.com</li>
               <li>john.doe@pestcontrol.com</li>
             </ul>
-            <strong>Password:</strong> TestPassword123!
-          </p>
+            <p className="mt-2">
+              <strong>Password:</strong> TestPassword123!
+            </p>
+          </div>
         </div>
       </CardContent>
     </Card>

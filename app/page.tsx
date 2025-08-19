@@ -1,7 +1,18 @@
 import { LoginForm } from "@/components/auth/login-form";
 import { AuthGuard } from "@/components/auth/auth-guard";
+import { SupabaseConfigError } from "@/components/auth/supabase-config-error";
 
 export default function LoginPage() {
+  // Check if Supabase is configured
+  if (
+    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_URL === "your_supabase_project_url" ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY === "your_supabase_anon_key"
+  ) {
+    return <SupabaseConfigError />;
+  }
+
   return (
     <AuthGuard requireAuth={false}>
       <div className="min-h-screen bg-background flex items-center justify-center p-4">

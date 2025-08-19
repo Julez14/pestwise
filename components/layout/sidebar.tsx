@@ -2,6 +2,7 @@
 
 import { useRouter, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/auth-context";
 
 const navigation = [
   { name: "Reports", icon: "clipboard", href: "/reports" },
@@ -13,11 +14,16 @@ const navigation = [
 export function Sidebar() {
   const router = useRouter();
   const pathname = usePathname();
+  const { signOut } = useAuth();
 
-  const handleLogout = () => {
-    localStorage.removeItem("isAuthenticated");
-    localStorage.removeItem("user");
-    router.push("/");
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      // The auth state change listener will automatically redirect to login
+      router.push("/");
+    } catch (error) {
+      console.error("Error signing out:", error);
+    }
   };
 
   const handleNavigation = (href: string) => {

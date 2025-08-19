@@ -1,22 +1,22 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { AddCommentDialog } from "./add-comment-dialog"
+import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { AddCommentDialog } from "./add-comment-dialog";
 
 interface Comment {
-  id: string
-  content: string
-  author: string
-  createdAt: string
-  updatedAt?: string
-  category: string
-  location?: string
-  reportId?: string
-  priority: "low" | "medium" | "high"
+  id: string;
+  content: string;
+  author: string;
+  createdAt: string;
+  updatedAt?: string;
+  category: string;
+  location?: string;
+  reportId?: string;
+  priority: "low" | "medium" | "high";
 }
 
 const mockComments: Comment[] = [
@@ -106,7 +106,7 @@ const mockComments: Comment[] = [
     reportId: "RPT-006",
     priority: "low",
   },
-]
+];
 
 const categories = [
   "All Categories",
@@ -118,72 +118,85 @@ const categories = [
   "Education",
   "Recommendation",
   "Follow-up",
-]
+];
 
-const priorities = ["All Priorities", "low", "medium", "high"]
+const priorities = ["All Priorities", "low", "medium", "high"];
 
 export function CommentsOverview() {
-  const [searchQuery, setSearchQuery] = useState("")
-  const [selectedCategory, setSelectedCategory] = useState("All Categories")
-  const [selectedPriority, setSelectedPriority] = useState("All Priorities")
-  const [comments, setComments] = useState<Comment[]>(mockComments)
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("All Categories");
+  const [selectedPriority, setSelectedPriority] = useState("All Priorities");
+  const [comments, setComments] = useState<Comment[]>(mockComments);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
 
   const filteredComments = comments.filter((comment) => {
     const matchesSearch =
       comment.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
       comment.author.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (comment.location && comment.location.toLowerCase().includes(searchQuery.toLowerCase()))
-    const matchesCategory = selectedCategory === "All Categories" || comment.category === selectedCategory
-    const matchesPriority = selectedPriority === "All Priorities" || comment.priority === selectedPriority
-    return matchesSearch && matchesCategory && matchesPriority
-  })
+      (comment.location &&
+        comment.location.toLowerCase().includes(searchQuery.toLowerCase()));
+    const matchesCategory =
+      selectedCategory === "All Categories" ||
+      comment.category === selectedCategory;
+    const matchesPriority =
+      selectedPriority === "All Priorities" ||
+      comment.priority === selectedPriority;
+    return matchesSearch && matchesCategory && matchesPriority;
+  });
 
-  const highPriorityCount = comments.filter((c) => c.priority === "high").length
-  const mediumPriorityCount = comments.filter((c) => c.priority === "medium").length
-  const lowPriorityCount = comments.filter((c) => c.priority === "low").length
+  const highPriorityCount = comments.filter(
+    (c) => c.priority === "high"
+  ).length;
+  const mediumPriorityCount = comments.filter(
+    (c) => c.priority === "medium"
+  ).length;
+  const lowPriorityCount = comments.filter((c) => c.priority === "low").length;
 
   const handleAddComment = (newComment: Omit<Comment, "id" | "createdAt">) => {
     const comment: Comment = {
       ...newComment,
       id: Date.now().toString(),
       createdAt: new Date().toISOString(),
-    }
-    setComments([comment, ...comments])
-  }
+    };
+    setComments([comment, ...comments]);
+  };
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case "high":
-        return "bg-red-100 text-red-800"
+        return "bg-red-100 text-red-800";
       case "medium":
-        return "bg-yellow-100 text-yellow-800"
+        return "bg-yellow-100 text-yellow-800";
       case "low":
-        return "bg-green-100 text-green-800"
+        return "bg-green-100 text-green-800";
       default:
-        return "bg-gray-100 text-gray-800"
+        return "bg-gray-100 text-gray-800";
     }
-  }
+  };
 
   const getCategoryColor = (category: string) => {
     switch (category) {
       case "Emergency":
-        return "bg-red-100 text-red-800"
+        return "bg-red-100 text-red-800";
       case "Treatment":
-        return "bg-blue-100 text-blue-800"
+        return "bg-blue-100 text-blue-800";
       case "Observation":
-        return "bg-orange-100 text-orange-800"
+        return "bg-orange-100 text-orange-800";
       case "Inspection":
-        return "bg-green-100 text-green-800"
+        return "bg-green-100 text-green-800";
       default:
-        return "bg-gray-100 text-gray-800"
+        return "bg-gray-100 text-gray-800";
     }
-  }
+  };
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
-    return date.toLocaleDateString() + " " + date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-  }
+    const date = new Date(dateString);
+    return (
+      date.toLocaleDateString() +
+      " " +
+      date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -191,9 +204,14 @@ export function CommentsOverview() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="hidden lg:block">
           <h1 className="text-2xl font-bold text-gray-900">Comments & Notes</h1>
-          <p className="text-gray-600 mt-1">Track observations, treatments, and important notes</p>
+          <p className="text-gray-600 mt-1">
+            Track observations, treatments, and important notes
+          </p>
         </div>
-        <Button className="bg-orange-500 hover:bg-orange-600 text-white" onClick={() => setIsAddDialogOpen(true)}>
+        <Button
+          className="bg-orange-500 hover:bg-orange-600 text-white"
+          onClick={() => setIsAddDialogOpen(true)}
+        >
           Add New Comment
         </Button>
       </div>
@@ -205,10 +223,17 @@ export function CommentsOverview() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">High Priority</p>
-                <p className="text-2xl font-bold text-gray-900">{highPriorityCount}</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {highPriorityCount}
+                </p>
               </div>
               <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg
+                  className="w-6 h-6 text-red-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -226,10 +251,17 @@ export function CommentsOverview() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Medium Priority</p>
-                <p className="text-2xl font-bold text-gray-900">{mediumPriorityCount}</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {mediumPriorityCount}
+                </p>
               </div>
               <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg
+                  className="w-6 h-6 text-yellow-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -247,11 +279,23 @@ export function CommentsOverview() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Low Priority</p>
-                <p className="text-2xl font-bold text-gray-900">{lowPriorityCount}</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {lowPriorityCount}
+                </p>
               </div>
               <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                <svg
+                  className="w-6 h-6 text-green-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 13l4 4L19 7"
+                  />
                 </svg>
               </div>
             </div>
@@ -290,7 +334,9 @@ export function CommentsOverview() {
               <option key={priority} value={priority}>
                 {priority === "All Priorities"
                   ? priority
-                  : `${priority.charAt(0).toUpperCase() + priority.slice(1)} Priority`}
+                  : `${
+                      priority.charAt(0).toUpperCase() + priority.slice(1)
+                    } Priority`}
               </option>
             ))}
           </select>
@@ -311,9 +357,12 @@ export function CommentsOverview() {
               >
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-2">
-                    <Badge className={getCategoryColor(comment.category)}>{comment.category}</Badge>
+                    <Badge className={getCategoryColor(comment.category)}>
+                      {comment.category}
+                    </Badge>
                     <Badge className={getPriorityColor(comment.priority)}>
-                      {comment.priority.charAt(0).toUpperCase() + comment.priority.slice(1)}
+                      {comment.priority.charAt(0).toUpperCase() +
+                        comment.priority.slice(1)}
                     </Badge>
                     {comment.reportId && (
                       <Badge variant="outline" className="text-xs">
@@ -323,7 +372,9 @@ export function CommentsOverview() {
                   </div>
                 </div>
 
-                <p className="text-gray-900 mb-3 leading-relaxed">{comment.content}</p>
+                <p className="text-gray-900 mb-3 leading-relaxed">
+                  {comment.content}
+                </p>
 
                 <div className="flex items-center justify-between text-xs text-gray-500">
                   <div className="flex items-center gap-4">
@@ -332,7 +383,12 @@ export function CommentsOverview() {
                       <>
                         <span>•</span>
                         <div className="flex items-center">
-                          <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg
+                            className="w-3 h-3 mr-1"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
                             <path
                               strokeLinecap="round"
                               strokeLinejoin="round"
@@ -367,5 +423,5 @@ export function CommentsOverview() {
         availableCategories={categories.slice(1)} // Remove "All Categories"
       />
     </div>
-  )
+  );
 }

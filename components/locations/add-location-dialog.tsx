@@ -1,27 +1,32 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useState } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Badge } from "@/components/ui/badge"
+import { useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 
 interface Location {
-  name: string
-  address: string
-  unit?: string
-  areas: string[]
-  lastInspection?: string
-  status: "active" | "inactive" | "scheduled"
+  name: string;
+  address: string;
+  unit?: string;
+  areas: string[];
+  lastInspection?: string;
+  status: "active" | "inactive" | "scheduled";
 }
 
 interface AddLocationDialogProps {
-  isOpen: boolean
-  onClose: () => void
-  onAdd: (location: Location) => void
+  isOpen: boolean;
+  onClose: () => void;
+  onAdd: (location: Location) => void;
 }
 
 const commonAreas = [
@@ -47,29 +52,33 @@ const commonAreas = [
   "Server Room",
   "Pharmacy",
   "Patient Rooms",
-]
+];
 
-export function AddLocationDialog({ isOpen, onClose, onAdd }: AddLocationDialogProps) {
+export function AddLocationDialog({
+  isOpen,
+  onClose,
+  onAdd,
+}: AddLocationDialogProps) {
   const [formData, setFormData] = useState<Location>({
     name: "",
     address: "",
     unit: "",
     areas: [],
     status: "active",
-  })
+  });
 
-  const [newArea, setNewArea] = useState("")
+  const [newArea, setNewArea] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
 
     if (formData.name && formData.address && formData.areas.length > 0) {
       const locationToAdd = {
         ...formData,
         unit: formData.unit || undefined,
-      }
+      };
 
-      onAdd(locationToAdd)
+      onAdd(locationToAdd);
 
       // Reset form
       setFormData({
@@ -78,11 +87,11 @@ export function AddLocationDialog({ isOpen, onClose, onAdd }: AddLocationDialogP
         unit: "",
         areas: [],
         status: "active",
-      })
-      setNewArea("")
-      onClose()
+      });
+      setNewArea("");
+      onClose();
     }
-  }
+  };
 
   const handleClose = () => {
     // Reset form when closing
@@ -92,27 +101,30 @@ export function AddLocationDialog({ isOpen, onClose, onAdd }: AddLocationDialogP
       unit: "",
       areas: [],
       status: "active",
-    })
-    setNewArea("")
-    onClose()
-  }
+    });
+    setNewArea("");
+    onClose();
+  };
 
   const addArea = (area: string) => {
     if (area && !formData.areas.includes(area)) {
-      setFormData({ ...formData, areas: [...formData.areas, area] })
+      setFormData({ ...formData, areas: [...formData.areas, area] });
     }
-  }
+  };
 
   const removeArea = (area: string) => {
-    setFormData({ ...formData, areas: formData.areas.filter((a) => a !== area) })
-  }
+    setFormData({
+      ...formData,
+      areas: formData.areas.filter((a) => a !== area),
+    });
+  };
 
   const addCustomArea = () => {
     if (newArea.trim()) {
-      addArea(newArea.trim())
-      setNewArea("")
+      addArea(newArea.trim());
+      setNewArea("");
     }
-  }
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
@@ -128,7 +140,9 @@ export function AddLocationDialog({ isOpen, onClose, onAdd }: AddLocationDialogP
                 id="name"
                 placeholder="e.g., Riverside Apartments"
                 value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, name: e.target.value })
+                }
                 required
               />
             </div>
@@ -139,7 +153,13 @@ export function AddLocationDialog({ isOpen, onClose, onAdd }: AddLocationDialogP
                 id="status"
                 value={formData.status}
                 onChange={(e) =>
-                  setFormData({ ...formData, status: e.target.value as "active" | "inactive" | "scheduled" })
+                  setFormData({
+                    ...formData,
+                    status: e.target.value as
+                      | "active"
+                      | "inactive"
+                      | "scheduled",
+                  })
                 }
                 className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
@@ -157,7 +177,9 @@ export function AddLocationDialog({ isOpen, onClose, onAdd }: AddLocationDialogP
               id="address"
               placeholder="e.g., 123 River Street, Downtown"
               value={formData.address}
-              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, address: e.target.value })
+              }
               required
             />
           </div>
@@ -168,7 +190,9 @@ export function AddLocationDialog({ isOpen, onClose, onAdd }: AddLocationDialogP
               id="unit"
               placeholder="e.g., Building A, Floor 12, Unit 4B"
               value={formData.unit}
-              onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, unit: e.target.value })
+              }
             />
           </div>
 
@@ -183,10 +207,20 @@ export function AddLocationDialog({ isOpen, onClose, onAdd }: AddLocationDialogP
                   <Button
                     key={area}
                     type="button"
-                    variant={formData.areas.includes(area) ? "default" : "outline"}
+                    variant={
+                      formData.areas.includes(area) ? "default" : "outline"
+                    }
                     size="sm"
-                    onClick={() => (formData.areas.includes(area) ? removeArea(area) : addArea(area))}
-                    className={formData.areas.includes(area) ? "bg-blue-600 hover:bg-blue-700" : ""}
+                    onClick={() =>
+                      formData.areas.includes(area)
+                        ? removeArea(area)
+                        : addArea(area)
+                    }
+                    className={
+                      formData.areas.includes(area)
+                        ? "bg-blue-600 hover:bg-blue-700"
+                        : ""
+                    }
                   >
                     {area}
                   </Button>
@@ -204,8 +238,8 @@ export function AddLocationDialog({ isOpen, onClose, onAdd }: AddLocationDialogP
                   onChange={(e) => setNewArea(e.target.value)}
                   onKeyPress={(e) => {
                     if (e.key === "Enter") {
-                      e.preventDefault()
-                      addCustomArea()
+                      e.preventDefault();
+                      addCustomArea();
                     }
                   }}
                 />
@@ -218,10 +252,16 @@ export function AddLocationDialog({ isOpen, onClose, onAdd }: AddLocationDialogP
             {/* Selected Areas */}
             {formData.areas.length > 0 && (
               <div className="space-y-2">
-                <p className="text-sm text-gray-600">Selected areas ({formData.areas.length}):</p>
+                <p className="text-sm text-gray-600">
+                  Selected areas ({formData.areas.length}):
+                </p>
                 <div className="flex flex-wrap gap-2 p-2 bg-gray-50 rounded-md max-h-24 overflow-y-auto">
                   {formData.areas.map((area) => (
-                    <Badge key={area} variant="secondary" className="flex items-center gap-1">
+                    <Badge
+                      key={area}
+                      variant="secondary"
+                      className="flex items-center gap-1"
+                    >
                       {area}
                       <button
                         type="button"
@@ -236,19 +276,27 @@ export function AddLocationDialog({ isOpen, onClose, onAdd }: AddLocationDialogP
               </div>
             )}
 
-            {formData.areas.length === 0 && <p className="text-sm text-red-600">Please select at least one area.</p>}
+            {formData.areas.length === 0 && (
+              <p className="text-sm text-red-600">
+                Please select at least one area.
+              </p>
+            )}
           </div>
 
           <div className="flex justify-end space-x-2 pt-4">
             <Button type="button" variant="outline" onClick={handleClose}>
               Cancel
             </Button>
-            <Button type="submit" className="bg-orange-500 hover:bg-orange-600" disabled={formData.areas.length === 0}>
+            <Button
+              type="submit"
+              className="bg-orange-500 hover:bg-orange-600"
+              disabled={formData.areas.length === 0}
+            >
               Add Location
             </Button>
           </div>
         </form>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

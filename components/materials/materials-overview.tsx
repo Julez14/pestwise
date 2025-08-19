@@ -1,20 +1,20 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { AddMaterialDialog } from "./add-material-dialog"
+import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { AddMaterialDialog } from "./add-material-dialog";
 
 interface Material {
-  id: string
-  name: string
-  description: string
-  group: string
-  inStock: boolean
-  lastUsed?: string
-  usageCount: number
+  id: string;
+  name: string;
+  description: string;
+  group: string;
+  inStock: boolean;
+  lastUsed?: string;
+  usageCount: number;
 }
 
 const mockMaterials: Material[] = [
@@ -90,7 +90,7 @@ const mockMaterials: Material[] = [
     lastUsed: "2024-01-14",
     usageCount: 3,
   },
-]
+];
 
 const materialGroups = [
   "All Groups",
@@ -102,50 +102,64 @@ const materialGroups = [
   "Exclusion Materials",
   "Sanitizers",
   "Monitoring",
-]
+];
 
 export function MaterialsOverview() {
-  const [searchQuery, setSearchQuery] = useState("")
-  const [selectedGroup, setSelectedGroup] = useState("All Groups")
-  const [materials, setMaterials] = useState<Material[]>(mockMaterials)
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedGroup, setSelectedGroup] = useState("All Groups");
+  const [materials, setMaterials] = useState<Material[]>(mockMaterials);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
 
   const filteredMaterials = materials.filter((material) => {
     const matchesSearch =
       material.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      material.description.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesGroup = selectedGroup === "All Groups" || material.group === selectedGroup
-    return matchesSearch && matchesGroup
-  })
+      material.description.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesGroup =
+      selectedGroup === "All Groups" || material.group === selectedGroup;
+    return matchesSearch && matchesGroup;
+  });
 
-  const inStockCount = materials.filter((m) => m.inStock).length
-  const outOfStockCount = materials.filter((m) => !m.inStock).length
-  const totalUsage = materials.reduce((sum, m) => sum + m.usageCount, 0)
+  const inStockCount = materials.filter((m) => m.inStock).length;
+  const outOfStockCount = materials.filter((m) => !m.inStock).length;
+  const totalUsage = materials.reduce((sum, m) => sum + m.usageCount, 0);
 
-  const handleAddMaterial = (newMaterial: Omit<Material, "id" | "usageCount" | "lastUsed">) => {
+  const handleAddMaterial = (
+    newMaterial: Omit<Material, "id" | "usageCount" | "lastUsed">
+  ) => {
     const material: Material = {
       ...newMaterial,
       id: Date.now().toString(),
       usageCount: 0,
-    }
-    setMaterials([...materials, material])
-  }
+    };
+    setMaterials([...materials, material]);
+  };
 
   const toggleStock = (id: string) => {
     setMaterials(
-      materials.map((material) => (material.id === id ? { ...material, inStock: !material.inStock } : material)),
-    )
-  }
+      materials.map((material) =>
+        material.id === id
+          ? { ...material, inStock: !material.inStock }
+          : material
+      )
+    );
+  };
 
   return (
     <div className="space-y-6">
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="hidden lg:block">
-          <h1 className="text-2xl font-bold text-gray-900">Materials Management</h1>
-          <p className="text-gray-600 mt-1">Manage your pest control materials and inventory</p>
+          <h1 className="text-2xl font-bold text-gray-900">
+            Materials Management
+          </h1>
+          <p className="text-gray-600 mt-1">
+            Manage your pest control materials and inventory
+          </p>
         </div>
-        <Button className="bg-orange-500 hover:bg-orange-600 text-white" onClick={() => setIsAddDialogOpen(true)}>
+        <Button
+          className="bg-orange-500 hover:bg-orange-600 text-white"
+          onClick={() => setIsAddDialogOpen(true)}
+        >
           Add New Material
         </Button>
       </div>
@@ -157,11 +171,23 @@ export function MaterialsOverview() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">In Stock</p>
-                <p className="text-2xl font-bold text-gray-900">{inStockCount}</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {inStockCount}
+                </p>
               </div>
               <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                <svg
+                  className="w-6 h-6 text-green-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 13l4 4L19 7"
+                  />
                 </svg>
               </div>
             </div>
@@ -173,10 +199,17 @@ export function MaterialsOverview() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Out of Stock</p>
-                <p className="text-2xl font-bold text-gray-900">{outOfStockCount}</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {outOfStockCount}
+                </p>
               </div>
               <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg
+                  className="w-6 h-6 text-red-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -197,7 +230,12 @@ export function MaterialsOverview() {
                 <p className="text-2xl font-bold text-gray-900">{totalUsage}</p>
               </div>
               <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg
+                  className="w-6 h-6 text-blue-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -250,15 +288,25 @@ export function MaterialsOverview() {
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
-                        <h3 className="font-medium text-gray-900">{material.name}</h3>
+                        <h3 className="font-medium text-gray-900">
+                          {material.name}
+                        </h3>
                         <Badge variant="outline" className="text-xs">
                           {material.group}
                         </Badge>
-                        <Badge className={material.inStock ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}>
+                        <Badge
+                          className={
+                            material.inStock
+                              ? "bg-green-100 text-green-800"
+                              : "bg-red-100 text-red-800"
+                          }
+                        >
                           {material.inStock ? "In Stock" : "Out of Stock"}
                         </Badge>
                       </div>
-                      <p className="text-sm text-gray-600 mb-2">{material.description}</p>
+                      <p className="text-sm text-gray-600 mb-2">
+                        {material.description}
+                      </p>
                       <div className="flex items-center text-xs text-gray-500">
                         <span>Used {material.usageCount} times</span>
                         {material.lastUsed && (
@@ -280,7 +328,9 @@ export function MaterialsOverview() {
                             : "text-green-600 hover:text-green-700 hover:bg-green-50"
                         }
                       >
-                        {material.inStock ? "Mark Out of Stock" : "Mark In Stock"}
+                        {material.inStock
+                          ? "Mark Out of Stock"
+                          : "Mark In Stock"}
                       </Button>
                     </div>
                   </div>
@@ -299,5 +349,5 @@ export function MaterialsOverview() {
         availableGroups={materialGroups.slice(1)} // Remove "All Groups"
       />
     </div>
-  )
+  );
 }

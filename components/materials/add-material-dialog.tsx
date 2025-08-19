@@ -1,60 +1,70 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useState } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
+import { useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 interface Material {
-  name: string
-  description: string
-  group: string
-  inStock: boolean
+  name: string;
+  description: string;
+  group: string;
+  inStock: boolean;
 }
 
 interface AddMaterialDialogProps {
-  isOpen: boolean
-  onClose: () => void
-  onAdd: (material: Material) => void
-  availableGroups: string[]
+  isOpen: boolean;
+  onClose: () => void;
+  onAdd: (material: Material) => void;
+  availableGroups: string[];
 }
 
-export function AddMaterialDialog({ isOpen, onClose, onAdd, availableGroups }: AddMaterialDialogProps) {
+export function AddMaterialDialog({
+  isOpen,
+  onClose,
+  onAdd,
+  availableGroups,
+}: AddMaterialDialogProps) {
   const [formData, setFormData] = useState<Material>({
     name: "",
     description: "",
     group: availableGroups[0] || "",
     inStock: true,
-  })
+  });
 
-  const [customGroup, setCustomGroup] = useState("")
-  const [isCustomGroup, setIsCustomGroup] = useState(false)
+  const [customGroup, setCustomGroup] = useState("");
+  const [isCustomGroup, setIsCustomGroup] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
     const materialToAdd = {
       ...formData,
       group: isCustomGroup ? customGroup : formData.group,
-    }
+    };
 
     if (materialToAdd.name && materialToAdd.group) {
-      onAdd(materialToAdd)
+      onAdd(materialToAdd);
       // Reset form
       setFormData({
         name: "",
         description: "",
         group: availableGroups[0] || "",
         inStock: true,
-      })
-      setCustomGroup("")
-      setIsCustomGroup(false)
-      onClose()
+      });
+      setCustomGroup("");
+      setIsCustomGroup(false);
+      onClose();
     }
-  }
+  };
 
   const handleClose = () => {
     // Reset form when closing
@@ -63,11 +73,11 @@ export function AddMaterialDialog({ isOpen, onClose, onAdd, availableGroups }: A
       description: "",
       group: availableGroups[0] || "",
       inStock: true,
-    })
-    setCustomGroup("")
-    setIsCustomGroup(false)
-    onClose()
-  }
+    });
+    setCustomGroup("");
+    setIsCustomGroup(false);
+    onClose();
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
@@ -82,7 +92,9 @@ export function AddMaterialDialog({ isOpen, onClose, onAdd, availableGroups }: A
               id="name"
               placeholder="e.g., Gel Bait - Cockroach"
               value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, name: e.target.value })
+              }
               required
             />
           </div>
@@ -93,7 +105,9 @@ export function AddMaterialDialog({ isOpen, onClose, onAdd, availableGroups }: A
               id="description"
               placeholder="Brief description of the material and its use"
               value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, description: e.target.value })
+              }
               rows={3}
             />
           </div>
@@ -105,10 +119,10 @@ export function AddMaterialDialog({ isOpen, onClose, onAdd, availableGroups }: A
                 value={isCustomGroup ? "custom" : formData.group}
                 onChange={(e) => {
                   if (e.target.value === "custom") {
-                    setIsCustomGroup(true)
+                    setIsCustomGroup(true);
                   } else {
-                    setIsCustomGroup(false)
-                    setFormData({ ...formData, group: e.target.value })
+                    setIsCustomGroup(false);
+                    setFormData({ ...formData, group: e.target.value });
                   }
                 }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -138,7 +152,9 @@ export function AddMaterialDialog({ isOpen, onClose, onAdd, availableGroups }: A
               type="checkbox"
               id="inStock"
               checked={formData.inStock}
-              onChange={(e) => setFormData({ ...formData, inStock: e.target.checked })}
+              onChange={(e) =>
+                setFormData({ ...formData, inStock: e.target.checked })
+              }
               className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
             />
             <Label htmlFor="inStock" className="text-sm">
@@ -157,5 +173,5 @@ export function AddMaterialDialog({ isOpen, onClose, onAdd, availableGroups }: A
         </form>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

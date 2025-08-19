@@ -1,27 +1,27 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Badge } from "@/components/ui/badge"
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 
 interface PestFinding {
-  id: string
-  type: "captured" | "sighted" | "evidence"
-  target: string
-  notes: string
-  location: string
+  id: string;
+  type: "captured" | "sighted" | "evidence";
+  target: string;
+  notes: string;
+  location: string;
 }
 
 export function AddReportForm() {
-  const router = useRouter()
+  const router = useRouter();
   const [formData, setFormData] = useState({
     title: "",
     location: "",
@@ -30,18 +30,20 @@ export function AddReportForm() {
     materials: [] as string[],
     comments: "",
     status: "draft" as "draft" | "completed",
-  })
+  });
 
-  const [pestFindings, setPestFindings] = useState<PestFinding[]>([])
-  const [newPestFinding, setNewPestFinding] = useState<Omit<PestFinding, "id">>({
-    type: "sighted",
-    target: "",
-    notes: "",
-    location: "",
-  })
+  const [pestFindings, setPestFindings] = useState<PestFinding[]>([]);
+  const [newPestFinding, setNewPestFinding] = useState<Omit<PestFinding, "id">>(
+    {
+      type: "sighted",
+      target: "",
+      notes: "",
+      location: "",
+    }
+  );
 
-  const [selectedMaterials, setSelectedMaterials] = useState<string[]>([])
-  const [newMaterial, setNewMaterial] = useState("")
+  const [selectedMaterials, setSelectedMaterials] = useState<string[]>([]);
+  const [newMaterial, setNewMaterial] = useState("");
 
   const availableMaterials = [
     "Bait Stations",
@@ -52,59 +54,73 @@ export function AddReportForm() {
     "Monitoring Devices",
     "Exclusion Materials",
     "Sanitizer",
-  ]
+  ];
 
-  const pestTypes = ["Ants", "Cockroaches", "Rodents", "Flies", "Spiders", "Beetles", "Moths", "Wasps", "Other"]
+  const pestTypes = [
+    "Ants",
+    "Cockroaches",
+    "Rodents",
+    "Flies",
+    "Spiders",
+    "Beetles",
+    "Moths",
+    "Wasps",
+    "Other",
+  ];
 
   const addMaterial = (material: string) => {
     if (material && !selectedMaterials.includes(material)) {
-      setSelectedMaterials([...selectedMaterials, material])
+      setSelectedMaterials([...selectedMaterials, material]);
     }
-  }
+  };
 
   const removeMaterial = (material: string) => {
-    setSelectedMaterials(selectedMaterials.filter((m) => m !== material))
-  }
+    setSelectedMaterials(selectedMaterials.filter((m) => m !== material));
+  };
 
   const addPestFinding = () => {
     if (newPestFinding.target && newPestFinding.location) {
       const finding: PestFinding = {
         ...newPestFinding,
         id: Date.now().toString(),
-      }
-      setPestFindings([...pestFindings, finding])
+      };
+      setPestFindings([...pestFindings, finding]);
       setNewPestFinding({
         type: "sighted",
         target: "",
         notes: "",
         location: "",
-      })
+      });
     }
-  }
+  };
 
   const removePestFinding = (id: string) => {
-    setPestFindings(pestFindings.filter((f) => f.id !== id))
-  }
+    setPestFindings(pestFindings.filter((f) => f.id !== id));
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
     // Here you would typically save to a database
-    console.log("Report Data:", { ...formData, materials: selectedMaterials, pestFindings })
-    router.push("/reports")
-  }
+    console.log("Report Data:", {
+      ...formData,
+      materials: selectedMaterials,
+      pestFindings,
+    });
+    router.push("/reports");
+  };
 
   const getPestTypeColor = (type: string) => {
     switch (type) {
       case "captured":
-        return "bg-red-100 text-red-800"
+        return "bg-red-100 text-red-800";
       case "sighted":
-        return "bg-yellow-100 text-yellow-800"
+        return "bg-yellow-100 text-yellow-800";
       case "evidence":
-        return "bg-blue-100 text-blue-800"
+        return "bg-blue-100 text-blue-800";
       default:
-        return "bg-gray-100 text-gray-800"
+        return "bg-gray-100 text-gray-800";
     }
-  }
+  };
 
   return (
     <div className="space-y-6">
@@ -112,7 +128,9 @@ export function AddReportForm() {
       <div className="flex items-center justify-between">
         <div className="hidden lg:block">
           <h1 className="text-2xl font-bold text-gray-900">Add New Report</h1>
-          <p className="text-gray-600 mt-1">Create a detailed pest control inspection report</p>
+          <p className="text-gray-600 mt-1">
+            Create a detailed pest control inspection report
+          </p>
         </div>
         <Button variant="outline" onClick={() => router.push("/reports")}>
           Cancel
@@ -133,7 +151,9 @@ export function AddReportForm() {
                   id="title"
                   placeholder="e.g., Kitchen Inspection - Unit 4B"
                   value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, title: e.target.value })
+                  }
                   required
                 />
               </div>
@@ -143,7 +163,9 @@ export function AddReportForm() {
                   id="location"
                   placeholder="e.g., Building A"
                   value={formData.location}
-                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, location: e.target.value })
+                  }
                   required
                 />
               </div>
@@ -154,7 +176,9 @@ export function AddReportForm() {
                 id="unit"
                 placeholder="e.g., Unit 4B, Kitchen, Basement"
                 value={formData.unit}
-                onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, unit: e.target.value })
+                }
               />
             </div>
             <div className="space-y-2">
@@ -163,7 +187,9 @@ export function AddReportForm() {
                 id="description"
                 placeholder="Brief description of the inspection or treatment"
                 value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, description: e.target.value })
+                }
                 rows={3}
               />
             </div>
@@ -181,12 +207,20 @@ export function AddReportForm() {
                 <Button
                   key={material}
                   type="button"
-                  variant={selectedMaterials.includes(material) ? "default" : "outline"}
+                  variant={
+                    selectedMaterials.includes(material) ? "default" : "outline"
+                  }
                   size="sm"
                   onClick={() =>
-                    selectedMaterials.includes(material) ? removeMaterial(material) : addMaterial(material)
+                    selectedMaterials.includes(material)
+                      ? removeMaterial(material)
+                      : addMaterial(material)
                   }
-                  className={selectedMaterials.includes(material) ? "bg-blue-600 hover:bg-blue-700" : ""}
+                  className={
+                    selectedMaterials.includes(material)
+                      ? "bg-blue-600 hover:bg-blue-700"
+                      : ""
+                  }
                 >
                   {material}
                 </Button>
@@ -199,9 +233,9 @@ export function AddReportForm() {
                 onChange={(e) => setNewMaterial(e.target.value)}
                 onKeyPress={(e) => {
                   if (e.key === "Enter") {
-                    e.preventDefault()
-                    addMaterial(newMaterial)
-                    setNewMaterial("")
+                    e.preventDefault();
+                    addMaterial(newMaterial);
+                    setNewMaterial("");
                   }
                 }}
               />
@@ -209,8 +243,8 @@ export function AddReportForm() {
                 type="button"
                 variant="outline"
                 onClick={() => {
-                  addMaterial(newMaterial)
-                  setNewMaterial("")
+                  addMaterial(newMaterial);
+                  setNewMaterial("");
                 }}
               >
                 Add
@@ -221,7 +255,11 @@ export function AddReportForm() {
                 <Label>Selected Materials:</Label>
                 <div className="flex flex-wrap gap-2">
                   {selectedMaterials.map((material) => (
-                    <Badge key={material} variant="secondary" className="flex items-center gap-1">
+                    <Badge
+                      key={material}
+                      variant="secondary"
+                      className="flex items-center gap-1"
+                    >
                       {material}
                       <button
                         type="button"
@@ -247,7 +285,9 @@ export function AddReportForm() {
             <Tabs defaultValue="add" className="w-full">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="add">Add Finding</TabsTrigger>
-                <TabsTrigger value="list">Current Findings ({pestFindings.length})</TabsTrigger>
+                <TabsTrigger value="list">
+                  Current Findings ({pestFindings.length})
+                </TabsTrigger>
               </TabsList>
 
               <TabsContent value="add" className="space-y-4">
@@ -259,7 +299,10 @@ export function AddReportForm() {
                       onChange={(e) =>
                         setNewPestFinding({
                           ...newPestFinding,
-                          type: e.target.value as "captured" | "sighted" | "evidence",
+                          type: e.target.value as
+                            | "captured"
+                            | "sighted"
+                            | "evidence",
                         })
                       }
                       className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -273,7 +316,12 @@ export function AddReportForm() {
                     <Label>Target Pest</Label>
                     <select
                       value={newPestFinding.target}
-                      onChange={(e) => setNewPestFinding({ ...newPestFinding, target: e.target.value })}
+                      onChange={(e) =>
+                        setNewPestFinding({
+                          ...newPestFinding,
+                          target: e.target.value,
+                        })
+                      }
                       className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="">Select pest type</option>
@@ -289,7 +337,12 @@ export function AddReportForm() {
                     <Input
                       placeholder="e.g., Under sink, Near window"
                       value={newPestFinding.location}
-                      onChange={(e) => setNewPestFinding({ ...newPestFinding, location: e.target.value })}
+                      onChange={(e) =>
+                        setNewPestFinding({
+                          ...newPestFinding,
+                          location: e.target.value,
+                        })
+                      }
                     />
                   </div>
                 </div>
@@ -298,7 +351,12 @@ export function AddReportForm() {
                   <Textarea
                     placeholder="Additional details about the finding"
                     value={newPestFinding.notes}
-                    onChange={(e) => setNewPestFinding({ ...newPestFinding, notes: e.target.value })}
+                    onChange={(e) =>
+                      setNewPestFinding({
+                        ...newPestFinding,
+                        notes: e.target.value,
+                      })
+                    }
                     rows={2}
                   />
                 </div>
@@ -314,7 +372,9 @@ export function AddReportForm() {
 
               <TabsContent value="list" className="space-y-4">
                 {pestFindings.length === 0 ? (
-                  <p className="text-gray-500 text-center py-4">No pest findings added yet</p>
+                  <p className="text-gray-500 text-center py-4">
+                    No pest findings added yet
+                  </p>
                 ) : (
                   <div className="space-y-3">
                     {pestFindings.map((finding) => (
@@ -325,12 +385,21 @@ export function AddReportForm() {
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-2">
                             <Badge className={getPestTypeColor(finding.type)}>
-                              {finding.type.charAt(0).toUpperCase() + finding.type.slice(1)}
+                              {finding.type.charAt(0).toUpperCase() +
+                                finding.type.slice(1)}
                             </Badge>
-                            <span className="font-medium">{finding.target}</span>
-                            <span className="text-sm text-gray-500">at {finding.location}</span>
+                            <span className="font-medium">
+                              {finding.target}
+                            </span>
+                            <span className="text-sm text-gray-500">
+                              at {finding.location}
+                            </span>
                           </div>
-                          {finding.notes && <p className="text-sm text-gray-600">{finding.notes}</p>}
+                          {finding.notes && (
+                            <p className="text-sm text-gray-600">
+                              {finding.notes}
+                            </p>
+                          )}
                         </div>
                         <Button
                           type="button"
@@ -359,7 +428,9 @@ export function AddReportForm() {
             <Textarea
               placeholder="Any additional observations, recommendations, or follow-up actions needed"
               value={formData.comments}
-              onChange={(e) => setFormData({ ...formData, comments: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, comments: e.target.value })
+              }
               rows={4}
             />
           </CardContent>
@@ -371,8 +442,8 @@ export function AddReportForm() {
             type="button"
             variant="outline"
             onClick={() => {
-              setFormData({ ...formData, status: "draft" })
-              handleSubmit(new Event("submit") as any)
+              setFormData({ ...formData, status: "draft" });
+              handleSubmit(new Event("submit") as any);
             }}
           >
             Save as Draft
@@ -387,5 +458,5 @@ export function AddReportForm() {
         </div>
       </form>
     </div>
-  )
+  );
 }

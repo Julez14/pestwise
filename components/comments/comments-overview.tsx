@@ -6,107 +6,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { AddCommentDialog } from "./add-comment-dialog";
+import { supabase } from "@/lib/supabase/client";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 interface Comment {
-  id: string;
+  id: number;
   content: string;
-  author: string;
-  createdAt: string;
-  updatedAt?: string;
+  author_name: string;
+  created_at: string;
+  updated_at: string;
   category: string;
-  location?: string;
-  reportId?: string;
+  location_detail: string | null;
+  report_id: number | null;
   priority: "low" | "medium" | "high";
 }
-
-const mockComments: Comment[] = [
-  {
-    id: "1",
-    content:
-      "Found evidence of rodent activity in the basement storage area. Recommend immediate treatment and sealing of entry points near the foundation.",
-    author: "John Doe",
-    createdAt: "2024-01-20T10:30:00Z",
-    category: "Observation",
-    location: "Building A - Basement",
-    reportId: "RPT-001",
-    priority: "high",
-  },
-  {
-    id: "2",
-    content:
-      "Customer reported seeing ants in kitchen area. Applied gel bait treatment around sink and baseboards. Follow-up scheduled in 2 weeks.",
-    author: "Sarah Johnson",
-    createdAt: "2024-01-19T14:15:00Z",
-    category: "Treatment",
-    location: "Unit 4B - Kitchen",
-    reportId: "RPT-002",
-    priority: "medium",
-  },
-  {
-    id: "3",
-    content:
-      "Quarterly inspection completed. No pest activity detected. All bait stations checked and refilled as needed.",
-    author: "Mike Chen",
-    createdAt: "2024-01-18T09:45:00Z",
-    category: "Inspection",
-    location: "Main Building - Cafeteria",
-    reportId: "RPT-003",
-    priority: "low",
-  },
-  {
-    id: "4",
-    content:
-      "Emergency response for wasp nest removal. Nest located under eaves on north side of building. Treatment successful, area secured.",
-    author: "Emily Davis",
-    createdAt: "2024-01-17T16:20:00Z",
-    category: "Emergency",
-    location: "Building C - Exterior",
-    reportId: "RPT-004",
-    priority: "high",
-  },
-  {
-    id: "5",
-    content:
-      "Preventive treatment applied to storage areas. Checked all monitoring devices - no activity detected. Recommend continued monitoring.",
-    author: "John Doe",
-    createdAt: "2024-01-16T11:00:00Z",
-    category: "Prevention",
-    location: "Storage Building",
-    reportId: "RPT-005",
-    priority: "low",
-  },
-  {
-    id: "6",
-    content:
-      "Customer education provided regarding proper food storage and sanitation practices to prevent future pest issues.",
-    author: "Sarah Johnson",
-    createdAt: "2024-01-15T13:30:00Z",
-    category: "Education",
-    location: "Unit 2A",
-    priority: "medium",
-  },
-  {
-    id: "7",
-    content:
-      "Identified potential entry points around HVAC system. Recommended sealing with exclusion materials. Work order submitted to maintenance.",
-    author: "Mike Chen",
-    createdAt: "2024-01-14T08:15:00Z",
-    category: "Recommendation",
-    location: "Building B - Roof Access",
-    priority: "medium",
-  },
-  {
-    id: "8",
-    content:
-      "Follow-up inspection after treatment. Significant reduction in pest activity observed. Customer satisfied with results.",
-    author: "Emily Davis",
-    createdAt: "2024-01-13T15:45:00Z",
-    category: "Follow-up",
-    location: "Unit 3C",
-    reportId: "RPT-006",
-    priority: "low",
-  },
-];
 
 const categories = [
   "All Categories",
@@ -126,15 +39,52 @@ export function CommentsOverview() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All Categories");
   const [selectedPriority, setSelectedPriority] = useState("All Priorities");
-  const [comments, setComments] = useState<Comment[]>(mockComments);
+  const queryClient = useQueryClient();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+
+  const {
+    data: comments = [],
+    isLoading,
+    error,
+    refetch,
+  } = useQuery<Comment[]>({
+    queryKey: ["comments", "list"],
+    queryFn: async () => {
+      const [commentsResult, profilesResult] = await Promise.all([
+        supabase
+          .from("comments")
+          .select("*")
+          .order("created_at", { ascending: false }),
+        supabase.from("profiles").select("id, name"),
+      ]);
+
+      if (commentsResult.error) throw commentsResult.error;
+      if (profilesResult.error) throw profilesResult.error;
+
+      const profilesMap = (profilesResult.data || []).reduce((acc, profile) => {
+        acc[profile.id] = profile.name;
+        return acc;
+      }, {} as Record<string, string>);
+
+      const transformedComments = (commentsResult.data || []).map(
+        (comment) => ({
+          ...comment,
+          author_name: profilesMap[comment.author_id] || "Unknown User",
+        })
+      );
+
+      return transformedComments;
+    },
+  });
 
   const filteredComments = comments.filter((comment) => {
     const matchesSearch =
       comment.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      comment.author.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (comment.location &&
-        comment.location.toLowerCase().includes(searchQuery.toLowerCase()));
+      comment.author_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (comment.location_detail &&
+        comment.location_detail
+          .toLowerCase()
+          .includes(searchQuery.toLowerCase()));
     const matchesCategory =
       selectedCategory === "All Categories" ||
       comment.category === selectedCategory;
@@ -152,13 +102,63 @@ export function CommentsOverview() {
   ).length;
   const lowPriorityCount = comments.filter((c) => c.priority === "low").length;
 
-  const handleAddComment = (newComment: Omit<Comment, "id" | "createdAt">) => {
-    const comment: Comment = {
-      ...newComment,
-      id: Date.now().toString(),
-      createdAt: new Date().toISOString(),
-    };
-    setComments([comment, ...comments]);
+  const addComment = useMutation({
+    mutationFn: async (
+      newComment: Omit<
+        Comment,
+        "id" | "created_at" | "updated_at" | "author_name"
+      >
+    ) => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) throw new Error("User not authenticated");
+
+      const { data, error } = await supabase
+        .from("comments")
+        .insert([
+          {
+            ...newComment,
+            author_id: user.id,
+          },
+        ])
+        .select("*")
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["comments", "list"] });
+    },
+  });
+
+  type DialogCommentInput = {
+    content: string;
+    author: string;
+    category: string;
+    location?: string;
+    reportId?: string;
+    priority: "low" | "medium" | "high";
+  };
+
+  const handleAddCommentFromDialog = async (
+    dialogComment: DialogCommentInput
+  ) => {
+    const numericReportId = (() => {
+      if (!dialogComment.reportId) return null;
+      const digits = dialogComment.reportId.match(/\d+/g)?.join("");
+      if (!digits) return null;
+      const parsed = parseInt(digits, 10);
+      return Number.isNaN(parsed) ? null : parsed;
+    })();
+
+    await addComment.mutateAsync({
+      content: dialogComment.content,
+      category: dialogComment.category,
+      location_detail: dialogComment.location || null,
+      report_id: numericReportId,
+      priority: dialogComment.priority,
+    } as Omit<Comment, "id" | "created_at" | "updated_at" | "author_name">);
   };
 
   const getPriorityColor = (priority: string) => {
@@ -197,6 +197,34 @@ export function CommentsOverview() {
       date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
     );
   };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto"></div>
+            <p className="text-gray-600 mt-2">Loading comments...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <p className="text-red-600 mb-4">Failed to load comments</p>
+            <Button onClick={() => refetch()} variant="outline">
+              Try Again
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -364,9 +392,9 @@ export function CommentsOverview() {
                       {comment.priority.charAt(0).toUpperCase() +
                         comment.priority.slice(1)}
                     </Badge>
-                    {comment.reportId && (
+                    {comment.report_id && (
                       <Badge variant="outline" className="text-xs">
-                        {comment.reportId}
+                        RPT-{comment.report_id}
                       </Badge>
                     )}
                   </div>
@@ -378,8 +406,8 @@ export function CommentsOverview() {
 
                 <div className="flex items-center justify-between text-xs text-gray-500">
                   <div className="flex items-center gap-4">
-                    <span className="font-medium">{comment.author}</span>
-                    {comment.location && (
+                    <span className="font-medium">{comment.author_name}</span>
+                    {comment.location_detail && (
                       <>
                         <span>•</span>
                         <div className="flex items-center">
@@ -402,12 +430,12 @@ export function CommentsOverview() {
                               d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
                             />
                           </svg>
-                          <span>{comment.location}</span>
+                          <span>{comment.location_detail}</span>
                         </div>
                       </>
                     )}
                   </div>
-                  <span>{formatDate(comment.createdAt)}</span>
+                  <span>{formatDate(comment.created_at)}</span>
                 </div>
               </div>
             ))}
@@ -419,7 +447,7 @@ export function CommentsOverview() {
       <AddCommentDialog
         isOpen={isAddDialogOpen}
         onClose={() => setIsAddDialogOpen(false)}
-        onAdd={handleAddComment}
+        onAdd={handleAddCommentFromDialog}
         availableCategories={categories.slice(1)} // Remove "All Categories"
       />
     </div>

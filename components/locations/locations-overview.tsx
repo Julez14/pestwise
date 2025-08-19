@@ -11,136 +11,69 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { AddLocationDialog } from "./add-location-dialog";
+import { supabase } from "@/lib/supabase/client";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 interface Location {
-  id: string;
+  id: number;
   name: string;
   address: string;
-  unit?: string;
-  areas: string[];
-  lastInspection?: string;
-  status: "active" | "inactive" | "scheduled";
-  totalReports: number;
-  activeIssues: number;
+  unit: string | null;
+  status: string;
+  last_inspection: string | null;
+  area_count: number;
+  total_reports: number;
+  reports_with_findings: number;
 }
 
-const mockLocations: Location[] = [
-  {
-    id: "1",
-    name: "Riverside Apartments",
-    address: "123 River Street, Downtown",
-    unit: "Building A",
-    areas: [
-      "Kitchen",
-      "Bathroom",
-      "Living Room",
-      "Bedroom",
-      "Balcony",
-      "Storage",
-    ],
-    lastInspection: "2024-01-20",
-    status: "active",
-    totalReports: 8,
-    activeIssues: 1,
-  },
-  {
-    id: "2",
-    name: "Metro Office Complex",
-    address: "456 Business Ave, Financial District",
-    unit: "Floor 12",
-    areas: [
-      "Reception",
-      "Conference Room",
-      "Kitchen",
-      "Restrooms",
-      "Storage Room",
-      "Server Room",
-    ],
-    lastInspection: "2024-01-18",
-    status: "active",
-    totalReports: 12,
-    activeIssues: 0,
-  },
-  {
-    id: "3",
-    name: "Sunset Restaurant",
-    address: "789 Food Court, Mall Plaza",
-    areas: [
-      "Dining Area",
-      "Kitchen",
-      "Prep Area",
-      "Storage",
-      "Restrooms",
-      "Outdoor Seating",
-    ],
-    lastInspection: "2024-01-15",
-    status: "scheduled",
-    totalReports: 15,
-    activeIssues: 2,
-  },
-  {
-    id: "4",
-    name: "Green Valley School",
-    address: "321 Education Blvd, Suburbs",
-    unit: "Main Building",
-    areas: [
-      "Cafeteria",
-      "Kitchen",
-      "Classrooms",
-      "Gymnasium",
-      "Library",
-      "Restrooms",
-      "Storage",
-    ],
-    lastInspection: "2024-01-10",
-    status: "active",
-    totalReports: 6,
-    activeIssues: 0,
-  },
-  {
-    id: "5",
-    name: "Harbor Warehouse",
-    address: "654 Industrial Way, Port District",
-    areas: [
-      "Loading Dock",
-      "Storage Area",
-      "Office",
-      "Break Room",
-      "Restrooms",
-    ],
-    lastInspection: "2024-01-05",
-    status: "inactive",
-    totalReports: 4,
-    activeIssues: 0,
-  },
-  {
-    id: "6",
-    name: "City Hospital",
-    address: "987 Medical Center Dr, Healthcare District",
-    unit: "East Wing",
-    areas: [
-      "Patient Rooms",
-      "Cafeteria",
-      "Kitchen",
-      "Storage",
-      "Pharmacy",
-      "Restrooms",
-    ],
-    lastInspection: "2024-01-22",
-    status: "active",
-    totalReports: 20,
-    activeIssues: 1,
-  },
-];
+interface LocationArea {
+  id: number;
+  location_id: number;
+  area_name: string;
+}
 
 export function LocationsOverview() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [locations, setLocations] = useState<Location[]>(mockLocations);
+  const queryClient = useQueryClient();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [expandedLocations, setExpandedLocations] = useState<Set<string>>(
+  const [expandedLocations, setExpandedLocations] = useState<Set<number>>(
     new Set()
   );
+
+  const {
+    data: locations = [],
+    isLoading: isLoadingLocations,
+    error: locationsError,
+    refetch: refetchLocations,
+  } = useQuery<Location[]>({
+    queryKey: ["locations", "summary"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("location_summary")
+        .select("*")
+        .order("name", { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const {
+    data: locationAreas = [],
+    isLoading: isLoadingAreas,
+    error: areasError,
+    refetch: refetchAreas,
+  } = useQuery<LocationArea[]>({
+    queryKey: ["locations", "areas"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("location_areas")
+        .select("*")
+        .order("area_name", { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+  });
 
   const filteredLocations = locations.filter((location) => {
     const matchesSearch =
@@ -157,21 +90,67 @@ export function LocationsOverview() {
   const scheduledCount = locations.filter(
     (l) => l.status === "scheduled"
   ).length;
-  const totalIssues = locations.reduce((sum, l) => sum + l.activeIssues, 0);
+  const totalIssues = locations.reduce(
+    (sum, l) => sum + l.reports_with_findings,
+    0
+  );
 
-  const handleAddLocation = (
-    newLocation: Omit<Location, "id" | "totalReports" | "activeIssues">
-  ) => {
-    const location: Location = {
-      ...newLocation,
-      id: Date.now().toString(),
-      totalReports: 0,
-      activeIssues: 0,
-    };
-    setLocations([...locations, location]);
+  // Helper function to get areas for a location
+  const getLocationAreas = (locationId: number) => {
+    return locationAreas
+      .filter((area) => area.location_id === locationId)
+      .map((area) => area.area_name);
   };
 
-  const toggleLocationExpansion = (locationId: string) => {
+  type DialogLocation = {
+    name: string;
+    address: string;
+    unit?: string;
+    areas: string[];
+    lastInspection?: string;
+    status: "active" | "inactive" | "scheduled";
+  };
+
+  const handleAddLocation = async (dialogLocation: DialogLocation) => {
+    try {
+      const { data: insertedLocation, error: insertLocationError } =
+        await supabase
+          .from("locations")
+          .insert([
+            {
+              name: dialogLocation.name,
+              address: dialogLocation.address,
+              unit: dialogLocation.unit || null,
+              status: dialogLocation.status,
+              last_inspection: dialogLocation.lastInspection || null,
+            },
+          ])
+          .select()
+          .single();
+
+      if (insertLocationError) throw insertLocationError;
+
+      if (insertedLocation && dialogLocation.areas.length > 0) {
+        const areasToInsert = dialogLocation.areas.map((areaName) => ({
+          location_id: insertedLocation.id,
+          area_name: areaName,
+        }));
+        const { error: insertAreasError } = await supabase
+          .from("location_areas")
+          .insert(areasToInsert);
+        if (insertAreasError) throw insertAreasError;
+      }
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["locations", "summary"] }),
+        queryClient.invalidateQueries({ queryKey: ["locations", "areas"] }),
+      ]);
+    } catch (err) {
+      console.error("Error adding location:", err);
+    }
+  };
+
+  const toggleLocationExpansion = (locationId: number) => {
     const newExpanded = new Set(expandedLocations);
     if (newExpanded.has(locationId)) {
       newExpanded.delete(locationId);
@@ -206,6 +185,40 @@ export function LocationsOverview() {
         return status;
     }
   };
+
+  if (isLoadingLocations || isLoadingAreas) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto"></div>
+            <p className="text-gray-600 mt-2">Loading locations...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (locationsError || areasError) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <p className="text-red-600 mb-4">Failed to load locations</p>
+            <Button
+              onClick={() => {
+                refetchLocations();
+                refetchAreas();
+              }}
+              variant="outline"
+            >
+              Try Again
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -365,10 +378,10 @@ export function LocationsOverview() {
                           <Badge className={getStatusColor(location.status)}>
                             {getStatusLabel(location.status)}
                           </Badge>
-                          {location.activeIssues > 0 && (
+                          {location.reports_with_findings > 0 && (
                             <Badge className="bg-red-100 text-red-800">
-                              {location.activeIssues} issue
-                              {location.activeIssues > 1 ? "s" : ""}
+                              {location.reports_with_findings} finding
+                              {location.reports_with_findings > 1 ? "s" : ""}
                             </Badge>
                           )}
                         </div>
@@ -398,14 +411,17 @@ export function LocationsOverview() {
                           )}
                         </div>
                         <div className="flex items-center text-xs text-gray-500">
-                          <span>{location.areas.length} areas</span>
+                          <span>{location.area_count} areas</span>
                           <span className="mx-2">•</span>
-                          <span>{location.totalReports} reports</span>
-                          {location.lastInspection && (
+                          <span>{location.total_reports} reports</span>
+                          {location.last_inspection && (
                             <>
                               <span className="mx-2">•</span>
                               <span>
-                                Last inspection: {location.lastInspection}
+                                Last inspection:{" "}
+                                {new Date(
+                                  location.last_inspection
+                                ).toLocaleDateString()}
                               </span>
                             </>
                           )}
@@ -435,19 +451,26 @@ export function LocationsOverview() {
                   <CollapsibleContent>
                     <div className="px-4 pb-4 border-t border-gray-100">
                       <div className="pt-4">
-                        <h4 className="text-sm font-medium text-gray-900 mb-3">
-                          Areas ({location.areas.length})
-                        </h4>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                          {location.areas.map((area, index) => (
-                            <div
-                              key={index}
-                              className="px-3 py-2 bg-gray-50 rounded-md text-sm text-gray-700 border border-gray-200"
-                            >
-                              {area}
-                            </div>
-                          ))}
-                        </div>
+                        {(() => {
+                          const areas = getLocationAreas(location.id);
+                          return (
+                            <>
+                              <h4 className="text-sm font-medium text-gray-900 mb-3">
+                                Areas ({areas.length})
+                              </h4>
+                              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                                {areas.map((area, index) => (
+                                  <div
+                                    key={index}
+                                    className="px-3 py-2 bg-gray-50 rounded-md text-sm text-gray-700 border border-gray-200"
+                                  >
+                                    {area}
+                                  </div>
+                                ))}
+                              </div>
+                            </>
+                          );
+                        })()}
                         <div className="flex justify-end mt-4 space-x-2">
                           <Button variant="outline" size="sm">
                             View Reports

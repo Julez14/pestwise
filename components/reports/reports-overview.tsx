@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/lib/supabase/client";
+import { useQuery } from "@tanstack/react-query";
 
 interface Report {
   id: number;
@@ -23,37 +24,24 @@ interface Report {
 export function ReportsOverview() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [reports, setReports] = useState<Report[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
-  useEffect(() => {
-    fetchReports();
-  }, []);
-
-  const fetchReports = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
+  const {
+    data: reports = [],
+    isLoading,
+    error,
+    refetch,
+  } = useQuery<Report[]>({
+    queryKey: ["reports"],
+    queryFn: async () => {
       const { data, error } = await supabase
         .from("report_details")
         .select("*")
         .order("updated_at", { ascending: false });
-
-      if (error) {
-        throw error;
-      }
-
-      setReports(data || []);
-    } catch (err) {
-      console.error("Error fetching reports:", err);
-      setError("Failed to load reports");
-    } finally {
-      setLoading(false);
-    }
-  };
+      if (error) throw error;
+      return data || [];
+    },
+  });
 
   const filteredReports = reports.filter((report) => {
     const location = report.unit
@@ -103,7 +91,7 @@ export function ReportsOverview() {
     }
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-center py-12">
@@ -121,8 +109,8 @@ export function ReportsOverview() {
       <div className="space-y-6">
         <div className="flex items-center justify-center py-12">
           <div className="text-center">
-            <p className="text-red-600 mb-4">{error}</p>
-            <Button onClick={fetchReports} variant="outline">
+            <p className="text-red-600 mb-4">Failed to load reports</p>
+            <Button onClick={() => refetch()} variant="outline">
               Try Again
             </Button>
           </div>

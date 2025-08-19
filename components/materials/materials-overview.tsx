@@ -6,91 +6,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { AddMaterialDialog } from "./add-material-dialog";
+import { supabase } from "@/lib/supabase/client";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 interface Material {
-  id: string;
+  id: number;
   name: string;
-  description: string;
-  group: string;
-  inStock: boolean;
-  lastUsed?: string;
-  usageCount: number;
+  description: string | null;
+  material_group: string;
+  in_stock: boolean;
+  last_used: string | null;
+  usage_count: number;
 }
-
-const mockMaterials: Material[] = [
-  {
-    id: "1",
-    name: "Gel Bait - Cockroach",
-    description: "Professional grade gel bait for cockroach control",
-    group: "Baits",
-    inStock: true,
-    lastUsed: "2024-01-20",
-    usageCount: 15,
-  },
-  {
-    id: "2",
-    name: "Rodent Bait Stations",
-    description: "Tamper-resistant bait stations for rodent control",
-    group: "Bait Stations",
-    inStock: true,
-    lastUsed: "2024-01-19",
-    usageCount: 8,
-  },
-  {
-    id: "3",
-    name: "Residual Spray - Ant Control",
-    description: "Long-lasting residual spray for ant treatment",
-    group: "Sprays",
-    inStock: false,
-    lastUsed: "2024-01-15",
-    usageCount: 12,
-  },
-  {
-    id: "4",
-    name: "Dust Treatment - Crack & Crevice",
-    description: "Insecticidal dust for hard-to-reach areas",
-    group: "Dusts",
-    inStock: true,
-    lastUsed: "2024-01-18",
-    usageCount: 6,
-  },
-  {
-    id: "5",
-    name: "Sticky Traps - Flying Insects",
-    description: "Non-toxic sticky traps for monitoring flying insects",
-    group: "Traps",
-    inStock: true,
-    lastUsed: "2024-01-17",
-    usageCount: 20,
-  },
-  {
-    id: "6",
-    name: "Exclusion Foam",
-    description: "Expanding foam for sealing entry points",
-    group: "Exclusion Materials",
-    inStock: true,
-    lastUsed: "2024-01-16",
-    usageCount: 4,
-  },
-  {
-    id: "7",
-    name: "Sanitizing Solution",
-    description: "EPA-approved sanitizer for treatment areas",
-    group: "Sanitizers",
-    inStock: true,
-    lastUsed: "2024-01-20",
-    usageCount: 25,
-  },
-  {
-    id: "8",
-    name: "Monitoring Devices - Multi-Pest",
-    description: "Electronic monitoring devices for various pests",
-    group: "Monitoring",
-    inStock: false,
-    lastUsed: "2024-01-14",
-    usageCount: 3,
-  },
-];
 
 const materialGroups = [
   "All Groups",
@@ -107,42 +34,121 @@ const materialGroups = [
 export function MaterialsOverview() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedGroup, setSelectedGroup] = useState("All Groups");
-  const [materials, setMaterials] = useState<Material[]>(mockMaterials);
+  const queryClient = useQueryClient();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+
+  const {
+    data: materials = [],
+    isLoading,
+    error,
+    refetch,
+  } = useQuery<Material[]>({
+    queryKey: ["materials"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("materials")
+        .select("*")
+        .order("name", { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+  });
 
   const filteredMaterials = materials.filter((material) => {
     const matchesSearch =
       material.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      material.description.toLowerCase().includes(searchQuery.toLowerCase());
+      (material.description &&
+        material.description.toLowerCase().includes(searchQuery.toLowerCase()));
     const matchesGroup =
-      selectedGroup === "All Groups" || material.group === selectedGroup;
+      selectedGroup === "All Groups" ||
+      material.material_group === selectedGroup;
     return matchesSearch && matchesGroup;
   });
 
-  const inStockCount = materials.filter((m) => m.inStock).length;
-  const outOfStockCount = materials.filter((m) => !m.inStock).length;
-  const totalUsage = materials.reduce((sum, m) => sum + m.usageCount, 0);
+  const inStockCount = materials.filter((m) => m.in_stock).length;
+  const outOfStockCount = materials.filter((m) => !m.in_stock).length;
+  const totalUsage = materials.reduce((sum, m) => sum + m.usage_count, 0);
 
-  const handleAddMaterial = (
-    newMaterial: Omit<Material, "id" | "usageCount" | "lastUsed">
-  ) => {
-    const material: Material = {
-      ...newMaterial,
-      id: Date.now().toString(),
-      usageCount: 0,
-    };
-    setMaterials([...materials, material]);
+  const addMaterial = useMutation({
+    mutationFn: async (
+      newMaterial: Omit<Material, "id" | "usage_count" | "last_used">
+    ) => {
+      const { data, error } = await supabase
+        .from("materials")
+        .insert([
+          {
+            ...newMaterial,
+            usage_count: 0,
+            last_used: null,
+          },
+        ])
+        .select()
+        .single();
+      if (error) throw error;
+      return data as Material;
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["materials"] });
+    },
+  });
+
+  type DialogMaterial = {
+    name: string;
+    description: string;
+    group: string;
+    inStock: boolean;
   };
 
-  const toggleStock = (id: string) => {
-    setMaterials(
-      materials.map((material) =>
-        material.id === id
-          ? { ...material, inStock: !material.inStock }
-          : material
-      )
+  const handleAddMaterialFromDialog = async (material: DialogMaterial) => {
+    await addMaterial.mutateAsync({
+      name: material.name,
+      description: material.description,
+      material_group: material.group,
+      in_stock: material.inStock,
+    });
+  };
+
+  const toggleStock = async (id: number) => {
+    const material = materials.find((m) => m.id === id);
+    if (!material) return;
+    const { error: updateError } = await supabase
+      .from("materials")
+      .update({ in_stock: !material.in_stock })
+      .eq("id", id);
+    if (updateError) {
+      console.error("Error updating material stock:", updateError);
+      return;
+    }
+    await queryClient.invalidateQueries({ queryKey: ["materials"] });
+  };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto"></div>
+            <p className="text-gray-600 mt-2">Loading materials...</p>
+          </div>
+        </div>
+      </div>
     );
-  };
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <p className="text-red-600 mb-4">Failed to load materials</p>
+            <Button onClick={() => refetch()} variant="outline">
+              Try Again
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -292,27 +298,32 @@ export function MaterialsOverview() {
                           {material.name}
                         </h3>
                         <Badge variant="outline" className="text-xs">
-                          {material.group}
+                          {material.material_group}
                         </Badge>
                         <Badge
                           className={
-                            material.inStock
+                            material.in_stock
                               ? "bg-green-100 text-green-800"
                               : "bg-red-100 text-red-800"
                           }
                         >
-                          {material.inStock ? "In Stock" : "Out of Stock"}
+                          {material.in_stock ? "In Stock" : "Out of Stock"}
                         </Badge>
                       </div>
                       <p className="text-sm text-gray-600 mb-2">
-                        {material.description}
+                        {material.description || "No description"}
                       </p>
                       <div className="flex items-center text-xs text-gray-500">
-                        <span>Used {material.usageCount} times</span>
-                        {material.lastUsed && (
+                        <span>Used {material.usage_count} times</span>
+                        {material.last_used && (
                           <>
                             <span className="mx-2">•</span>
-                            <span>Last used {material.lastUsed}</span>
+                            <span>
+                              Last used{" "}
+                              {new Date(
+                                material.last_used
+                              ).toLocaleDateString()}
+                            </span>
                           </>
                         )}
                       </div>
@@ -323,12 +334,12 @@ export function MaterialsOverview() {
                         size="sm"
                         onClick={() => toggleStock(material.id)}
                         className={
-                          material.inStock
+                          material.in_stock
                             ? "text-red-600 hover:text-red-700 hover:bg-red-50"
                             : "text-green-600 hover:text-green-700 hover:bg-green-50"
                         }
                       >
-                        {material.inStock
+                        {material.in_stock
                           ? "Mark Out of Stock"
                           : "Mark In Stock"}
                       </Button>
@@ -345,7 +356,7 @@ export function MaterialsOverview() {
       <AddMaterialDialog
         isOpen={isAddDialogOpen}
         onClose={() => setIsAddDialogOpen(false)}
-        onAdd={handleAddMaterial}
+        onAdd={handleAddMaterialFromDialog}
         availableGroups={materialGroups.slice(1)} // Remove "All Groups"
       />
     </div>

@@ -7,7 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/lib/supabase/client";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/contexts/auth-context";
+import { isAdmin } from "@/lib/roles";
 
 interface Report {
   id: number;
@@ -16,6 +18,7 @@ interface Report {
   location_name: string;
   unit: string | null;
   author_name: string;
+  author_id: string;
   updated_at: string;
   status: string;
   pest_findings_count: number;
@@ -24,7 +27,13 @@ interface Report {
 export function ReportsOverview() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    reportId: number;
+    reportTitle: string;
+  } | null>(null);
   const router = useRouter();
+  const { profile } = useAuth();
+  const queryClient = useQueryClient();
 
   const {
     data: reports = [],
@@ -64,6 +73,45 @@ export function ReportsOverview() {
   const completedReports = reports.filter(
     (r) => r.status === "completed"
   ).length;
+
+  // Delete mutation
+  const deleteReportMutation = useMutation({
+    mutationFn: async (reportId: number) => {
+      const { error } = await supabase
+        .from("reports")
+        .delete()
+        .eq("id", reportId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["reports"] });
+      queryClient.invalidateQueries({ queryKey: ["location_summary"] });
+      setDeleteConfirm(null);
+    },
+    onError: (error: Error) => {
+      console.error("Error deleting report:", error);
+      alert(`Failed to delete report: ${error.message}`);
+    },
+  });
+
+  // Check if user can edit/delete a report
+  const canModifyReport = (report: Report) => {
+    if (!profile) return false;
+    // Admins can modify any report
+    if (isAdmin(profile.role)) return true;
+    // Authors can modify their own reports
+    return report.author_id === profile.id;
+  };
+
+  const handleDeleteReport = (reportId: number, reportTitle: string) => {
+    setDeleteConfirm({ reportId, reportTitle });
+  };
+
+  const confirmDelete = () => {
+    if (deleteConfirm) {
+      deleteReportMutation.mutate(deleteConfirm.reportId);
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -316,6 +364,30 @@ export function ReportsOverview() {
                       <Badge className={getStatusColor(report.status)}>
                         {getStatusLabel(report.status)}
                       </Badge>
+                      {canModifyReport(report) && (
+                        <div className="flex space-x-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              router.push(`/reports/edit/${report.id}`)
+                            }
+                          >
+                            Edit
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-red-600 hover:text-red-700 hover:border-red-300"
+                            onClick={() =>
+                              handleDeleteReport(report.id, report.title)
+                            }
+                            disabled={deleteReportMutation.isPending}
+                          >
+                            Delete
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -324,6 +396,58 @@ export function ReportsOverview() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Dialog */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="text-center">
+              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg
+                  className="w-6 h-6 text-red-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                  />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                Delete Report
+              </h3>
+              <p className="text-gray-600 mb-6">
+                Are you sure you want to delete the report "
+                {deleteConfirm.reportTitle}"? This action cannot be undone and
+                will also delete all associated pest findings and material usage
+                records.
+              </p>
+              <div className="flex space-x-3 justify-center">
+                <Button
+                  variant="outline"
+                  onClick={() => setDeleteConfirm(null)}
+                  disabled={deleteReportMutation.isPending}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  className="bg-red-600 hover:bg-red-700 text-white"
+                  onClick={confirmDelete}
+                  disabled={deleteReportMutation.isPending}
+                >
+                  {deleteReportMutation.isPending
+                    ? "Deleting..."
+                    : "Delete Report"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -16,6 +16,9 @@ export function QueryProvider({ children }: PropsWithChildren) {
             refetchOnMount: false,
             retry: 1,
           },
+          mutations: {
+            retry: 1,
+          },
         },
       })
   );

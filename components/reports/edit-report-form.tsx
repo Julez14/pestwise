@@ -2,7 +2,7 @@
 
 import type React from "react";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase/client";
@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { isAdmin } from "@/lib/roles";
 
 interface PestFinding {
   id: string;
@@ -21,6 +22,7 @@ interface PestFinding {
   target: string;
   notes: string;
   location: string;
+  report_id?: number;
 }
 
 interface Location {
@@ -33,7 +35,22 @@ interface Material {
   name: string;
 }
 
-export function AddReportForm() {
+interface ExistingReport {
+  id: number;
+  title: string;
+  description: string | null;
+  location_id: number;
+  unit: string | null;
+  status: string;
+  comments: string | null;
+  author_id: string;
+}
+
+interface EditReportFormProps {
+  reportId: number;
+}
+
+export function EditReportForm({ reportId }: EditReportFormProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { profile } = useAuth();
@@ -57,6 +74,98 @@ export function AddReportForm() {
   );
 
   const [selectedMaterials, setSelectedMaterials] = useState<number[]>([]);
+  const [isAuthorized, setIsAuthorized] = useState(false);
+
+  // Fetch existing report data
+  const { data: existingReport, isLoading: isLoadingReport } =
+    useQuery<ExistingReport>({
+      queryKey: ["report", reportId],
+      queryFn: async () => {
+        const { data, error } = await supabase
+          .from("reports")
+          .select("*")
+          .eq("id", reportId)
+          .single();
+        if (error) throw error;
+        return data;
+      },
+      enabled: !!reportId,
+    });
+
+  // Fetch existing pest findings
+  const { data: existingPestFindings } = useQuery({
+    queryKey: ["pest_findings", reportId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("pest_findings")
+        .select("*")
+        .eq("report_id", reportId);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!reportId,
+  });
+
+  // Fetch existing materials
+  const { data: existingMaterials } = useQuery({
+    queryKey: ["report_materials", reportId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("report_materials")
+        .select("material_id")
+        .eq("report_id", reportId);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!reportId,
+  });
+
+  // Check authorization
+  useEffect(() => {
+    if (existingReport && profile) {
+      const canEdit =
+        isAdmin(profile.role) || existingReport.author_id === profile.id;
+      setIsAuthorized(canEdit);
+      if (!canEdit) {
+        alert("You don't have permission to edit this report.");
+        router.push("/reports");
+      }
+    }
+  }, [existingReport, profile, router]);
+
+  // Populate form when data is loaded
+  useEffect(() => {
+    if (existingReport) {
+      setFormData({
+        title: existingReport.title,
+        location_id: existingReport.location_id.toString(),
+        unit: existingReport.unit || "",
+        description: existingReport.description || "",
+        comments: existingReport.comments || "",
+        status: existingReport.status as "draft" | "completed",
+      });
+    }
+  }, [existingReport]);
+
+  useEffect(() => {
+    if (existingPestFindings) {
+      const findings = existingPestFindings.map((finding: any) => ({
+        id: finding.id.toString(),
+        type: finding.finding_type as "captured" | "sighted" | "evidence",
+        target: finding.target_pest,
+        notes: finding.notes || "",
+        location: finding.location_detail,
+        report_id: finding.report_id,
+      }));
+      setPestFindings(findings);
+    }
+  }, [existingPestFindings]);
+
+  useEffect(() => {
+    if (existingMaterials) {
+      setSelectedMaterials(existingMaterials.map((rm: any) => rm.material_id));
+    }
+  }, [existingMaterials]);
 
   const { data: locations, isLoading: isLoadingLocations } = useQuery<
     Location[]
@@ -128,7 +237,7 @@ export function AddReportForm() {
     setPestFindings(pestFindings.filter((f) => f.id !== id));
   };
 
-  const addReportMutation = useMutation({
+  const updateReportMutation = useMutation({
     mutationFn: async ({
       formData,
       pestFindings,
@@ -147,27 +256,30 @@ export function AddReportForm() {
     }) => {
       if (!profile) throw new Error("User is not authenticated.");
 
-      const reportToInsert = {
+      const reportToUpdate = {
         title: formData.title,
         location_id: parseInt(formData.location_id, 10),
         unit: formData.unit || null,
         description: formData.description || null,
         comments: formData.comments || null,
         status: formData.status,
-        author_id: profile.id,
       };
 
-      const { data: newReport, error: reportError } = await supabase
+      // Update report
+      const { error: reportError } = await supabase
         .from("reports")
-        .insert(reportToInsert)
-        .select()
-        .single();
+        .update(reportToUpdate)
+        .eq("id", reportId);
 
       if (reportError) throw reportError;
-      if (!newReport) throw new Error("Failed to create report.");
 
-      const reportId = newReport.id;
+      // Delete existing pest findings and materials
+      await Promise.all([
+        supabase.from("pest_findings").delete().eq("report_id", reportId),
+        supabase.from("report_materials").delete().eq("report_id", reportId),
+      ]);
 
+      // Insert updated pest findings
       if (pestFindings.length > 0) {
         const findingsToInsert = pestFindings.map((finding) => ({
           report_id: reportId,
@@ -182,6 +294,7 @@ export function AddReportForm() {
         if (findingsError) throw findingsError;
       }
 
+      // Insert updated materials
       if (selectedMaterials.length > 0) {
         const materialsToInsert = selectedMaterials.map((materialId) => ({
           report_id: reportId,
@@ -193,16 +306,17 @@ export function AddReportForm() {
         if (materialsError) throw materialsError;
       }
 
-      return newReport;
+      return { id: reportId };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["reports"] });
       queryClient.invalidateQueries({ queryKey: ["location_summary"] });
+      queryClient.invalidateQueries({ queryKey: ["report", reportId] });
       router.push("/reports");
     },
     onError: (error: Error) => {
-      console.error("Error creating report:", error);
-      alert(`Failed to create report: ${error.message}`);
+      console.error("Error updating report:", error);
+      alert(`Failed to update report: ${error.message}`);
     },
   });
 
@@ -212,7 +326,7 @@ export function AddReportForm() {
       return;
     }
 
-    addReportMutation.mutate({
+    updateReportMutation.mutate({
       formData: { ...formData, status },
       pestFindings,
       selectedMaterials,
@@ -237,14 +351,31 @@ export function AddReportForm() {
     }
   };
 
+  if (isLoadingReport) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto"></div>
+            <p className="text-gray-600 mt-2">Loading report...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!existingReport || !isAuthorized) {
+    return null;
+  }
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div className="hidden lg:block">
-          <h1 className="text-2xl font-bold text-gray-900">Add New Report</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Edit Report</h1>
           <p className="text-gray-600 mt-1">
-            Create a detailed pest control inspection report
+            Update your pest control inspection report
           </p>
         </div>
         <Button variant="outline" onClick={() => router.push("/reports")}>
@@ -556,17 +687,17 @@ export function AddReportForm() {
             type="button"
             variant="outline"
             onClick={() => handleFormSubmit("draft")}
-            disabled={addReportMutation.isPending}
+            disabled={updateReportMutation.isPending}
           >
-            {addReportMutation.isPending ? "Saving..." : "Save as Draft"}
+            {updateReportMutation.isPending ? "Saving..." : "Save as Draft"}
           </Button>
           <Button
             type="button"
             className="bg-orange-500 hover:bg-orange-600"
             onClick={() => handleFormSubmit("completed")}
-            disabled={addReportMutation.isPending}
+            disabled={updateReportMutation.isPending}
           >
-            {addReportMutation.isPending ? "Completing..." : "Complete Report"}
+            {updateReportMutation.isPending ? "Updating..." : "Update Report"}
           </Button>
         </div>
       </form>

@@ -12,7 +12,9 @@ import {
 } from "@/components/ui/collapsible";
 import { AddLocationDialog } from "./add-location-dialog";
 import { supabase } from "@/lib/supabase/client";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
+import { useAuth } from "@/contexts/auth-context";
+import { isAdmin, isManager } from "@/lib/roles";
 
 interface Location {
   id: number;
@@ -35,11 +37,17 @@ interface LocationArea {
 export function LocationsOverview() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    locationId: number;
+    locationName: string;
+  } | null>(null);
+  const [editingLocation, setEditingLocation] = useState<Location | null>(null);
   const queryClient = useQueryClient();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [expandedLocations, setExpandedLocations] = useState<Set<number>>(
     new Set()
   );
+  const { profile } = useAuth();
 
   const {
     data: locations = [],
@@ -94,6 +102,72 @@ export function LocationsOverview() {
     (sum, l) => sum + l.reports_with_findings,
     0
   );
+
+  // Delete mutation
+  const deleteLocationMutation = useMutation({
+    mutationFn: async (locationId: number) => {
+      // First delete location areas
+      await supabase
+        .from("location_areas")
+        .delete()
+        .eq("location_id", locationId);
+      // Then delete the location
+      const { error } = await supabase
+        .from("locations")
+        .delete()
+        .eq("id", locationId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["locations", "summary"] });
+      queryClient.invalidateQueries({ queryKey: ["locations", "areas"] });
+      setDeleteConfirm(null);
+    },
+    onError: (error: Error) => {
+      console.error("Error deleting location:", error);
+      alert(`Failed to delete location: ${error.message}`);
+    },
+  });
+
+  // Update mutation
+  const updateLocationMutation = useMutation({
+    mutationFn: async (updatedLocation: Location) => {
+      const { error } = await supabase
+        .from("locations")
+        .update({
+          name: updatedLocation.name,
+          address: updatedLocation.address,
+          unit: updatedLocation.unit,
+          status: updatedLocation.status,
+        })
+        .eq("id", updatedLocation.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["locations", "summary"] });
+      setEditingLocation(null);
+    },
+    onError: (error: Error) => {
+      console.error("Error updating location:", error);
+      alert(`Failed to update location: ${error.message}`);
+    },
+  });
+
+  // Check if user can edit/delete a location (admins and managers only)
+  const canModifyLocation = () => {
+    if (!profile) return false;
+    return isAdmin(profile.role) || isManager(profile.role);
+  };
+
+  const handleDeleteLocation = (locationId: number, locationName: string) => {
+    setDeleteConfirm({ locationId, locationName });
+  };
+
+  const confirmDelete = () => {
+    if (deleteConfirm) {
+      deleteLocationMutation.mutate(deleteConfirm.locationId);
+    }
+  };
 
   // Helper function to get areas for a location
   const getLocationAreas = (locationId: number) => {
@@ -384,6 +458,36 @@ export function LocationsOverview() {
                               {location.reports_with_findings > 1 ? "s" : ""}
                             </Badge>
                           )}
+                          {canModifyLocation() && (
+                            <div className="flex space-x-1 ml-auto">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setEditingLocation(location);
+                                }}
+                                className="text-xs px-2 py-1 h-6"
+                              >
+                                Edit
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-red-600 hover:text-red-700 hover:border-red-300 text-xs px-2 py-1 h-6"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteLocation(
+                                    location.id,
+                                    location.name
+                                  );
+                                }}
+                                disabled={deleteLocationMutation.isPending}
+                              >
+                                Delete
+                              </Button>
+                            </div>
+                          )}
                         </div>
                         <div className="flex items-center text-sm text-gray-600 mb-2">
                           <svg
@@ -451,6 +555,103 @@ export function LocationsOverview() {
                   <CollapsibleContent>
                     <div className="px-4 pb-4 border-t border-gray-100">
                       <div className="pt-4">
+                        {editingLocation?.id === location.id ? (
+                          <div className="space-y-4 mb-6">
+                            <h4 className="text-sm font-medium text-gray-900 mb-3">
+                              Edit Location
+                            </h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                  Name
+                                </label>
+                                <input
+                                  type="text"
+                                  value={editingLocation.name}
+                                  onChange={(e) =>
+                                    setEditingLocation({
+                                      ...editingLocation,
+                                      name: e.target.value,
+                                    })
+                                  }
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                  Status
+                                </label>
+                                <select
+                                  value={editingLocation.status}
+                                  onChange={(e) =>
+                                    setEditingLocation({
+                                      ...editingLocation,
+                                      status: e.target.value,
+                                    })
+                                  }
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                >
+                                  <option value="active">Active</option>
+                                  <option value="inactive">Inactive</option>
+                                  <option value="scheduled">Scheduled</option>
+                                </select>
+                              </div>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Address
+                              </label>
+                              <input
+                                type="text"
+                                value={editingLocation.address}
+                                onChange={(e) =>
+                                  setEditingLocation({
+                                    ...editingLocation,
+                                    address: e.target.value,
+                                  })
+                                }
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Unit (optional)
+                              </label>
+                              <input
+                                type="text"
+                                value={editingLocation.unit || ""}
+                                onChange={(e) =>
+                                  setEditingLocation({
+                                    ...editingLocation,
+                                    unit: e.target.value || null,
+                                  })
+                                }
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              />
+                            </div>
+                            <div className="flex space-x-2">
+                              <Button
+                                size="sm"
+                                onClick={() =>
+                                  updateLocationMutation.mutate(editingLocation)
+                                }
+                                disabled={updateLocationMutation.isPending}
+                                className="bg-orange-500 hover:bg-orange-600"
+                              >
+                                {updateLocationMutation.isPending
+                                  ? "Saving..."
+                                  : "Save"}
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setEditingLocation(null)}
+                              >
+                                Cancel
+                              </Button>
+                            </div>
+                          </div>
+                        ) : null}
                         {(() => {
                           const areas = getLocationAreas(location.id);
                           return (
@@ -471,14 +672,6 @@ export function LocationsOverview() {
                             </>
                           );
                         })()}
-                        <div className="flex justify-end mt-4 space-x-2">
-                          <Button variant="outline" size="sm">
-                            View Reports
-                          </Button>
-                          <Button variant="outline" size="sm">
-                            Schedule Inspection
-                          </Button>
-                        </div>
                       </div>
                     </div>
                   </CollapsibleContent>
@@ -488,6 +681,57 @@ export function LocationsOverview() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Dialog */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="text-center">
+              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg
+                  className="w-6 h-6 text-red-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                  />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                Delete Location
+              </h3>
+              <p className="text-gray-600 mb-6">
+                Are you sure you want to delete the location "
+                {deleteConfirm.locationName}"? This action cannot be undone and
+                will also delete all associated areas and reports.
+              </p>
+              <div className="flex space-x-3 justify-center">
+                <Button
+                  variant="outline"
+                  onClick={() => setDeleteConfirm(null)}
+                  disabled={deleteLocationMutation.isPending}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  className="bg-red-600 hover:bg-red-700 text-white"
+                  onClick={confirmDelete}
+                  disabled={deleteLocationMutation.isPending}
+                >
+                  {deleteLocationMutation.isPending
+                    ? "Deleting..."
+                    : "Delete Location"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Add Location Dialog */}
       <AddLocationDialog

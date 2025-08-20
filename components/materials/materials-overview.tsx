@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { AddMaterialDialog } from "./add-material-dialog";
 import { supabase } from "@/lib/supabase/client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/contexts/auth-context";
+import { isAdmin, isManager } from "@/lib/roles";
 
 interface Material {
   id: number;
@@ -34,8 +36,14 @@ const materialGroups = [
 export function MaterialsOverview() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedGroup, setSelectedGroup] = useState("All Groups");
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    materialId: number;
+    materialName: string;
+  } | null>(null);
+  const [editingMaterial, setEditingMaterial] = useState<Material | null>(null);
   const queryClient = useQueryClient();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const { profile } = useAuth();
 
   const {
     data: materials = [],
@@ -68,6 +76,71 @@ export function MaterialsOverview() {
   const inStockCount = materials.filter((m) => m.in_stock).length;
   const outOfStockCount = materials.filter((m) => !m.in_stock).length;
   const totalUsage = materials.reduce((sum, m) => sum + m.usage_count, 0);
+
+  // Delete mutation
+  const deleteMaterialMutation = useMutation({
+    mutationFn: async (materialId: number) => {
+      // First delete all report_materials references
+      await supabase
+        .from("report_materials")
+        .delete()
+        .eq("material_id", materialId);
+      // Then delete the material itself
+      const { error } = await supabase
+        .from("materials")
+        .delete()
+        .eq("id", materialId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["materials"] });
+      setDeleteConfirm(null);
+    },
+    onError: (error: Error) => {
+      console.error("Error deleting material:", error);
+      alert(`Failed to delete material: ${error.message}`);
+    },
+  });
+
+  // Update mutation
+  const updateMaterialMutation = useMutation({
+    mutationFn: async (updatedMaterial: Material) => {
+      const { error } = await supabase
+        .from("materials")
+        .update({
+          name: updatedMaterial.name,
+          description: updatedMaterial.description,
+          material_group: updatedMaterial.material_group,
+          in_stock: updatedMaterial.in_stock,
+        })
+        .eq("id", updatedMaterial.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["materials"] });
+      setEditingMaterial(null);
+    },
+    onError: (error: Error) => {
+      console.error("Error updating material:", error);
+      alert(`Failed to update material: ${error.message}`);
+    },
+  });
+
+  // Check if user can edit/delete a material (admins and managers only)
+  const canModifyMaterial = () => {
+    if (!profile) return false;
+    return isAdmin(profile.role) || isManager(profile.role);
+  };
+
+  const handleDeleteMaterial = (materialId: number, materialName: string) => {
+    setDeleteConfirm({ materialId, materialName });
+  };
+
+  const confirmDelete = () => {
+    if (deleteConfirm) {
+      deleteMaterialMutation.mutate(deleteConfirm.materialId);
+    }
+  };
 
   const addMaterial = useMutation({
     mutationFn: async (
@@ -343,6 +416,28 @@ export function MaterialsOverview() {
                           ? "Mark Out of Stock"
                           : "Mark In Stock"}
                       </Button>
+                      {canModifyMaterial() && (
+                        <>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setEditingMaterial(material)}
+                          >
+                            Edit
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-red-600 hover:text-red-700 hover:border-red-300"
+                            onClick={() =>
+                              handleDeleteMaterial(material.id, material.name)
+                            }
+                            disabled={deleteMaterialMutation.isPending}
+                          >
+                            Delete
+                          </Button>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -351,6 +446,158 @@ export function MaterialsOverview() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Edit Material Dialog */}
+      {editingMaterial && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              Edit Material
+            </h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Name
+                </label>
+                <input
+                  type="text"
+                  value={editingMaterial.name}
+                  onChange={(e) =>
+                    setEditingMaterial({
+                      ...editingMaterial,
+                      name: e.target.value,
+                    })
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Description
+                </label>
+                <textarea
+                  value={editingMaterial.description || ""}
+                  onChange={(e) =>
+                    setEditingMaterial({
+                      ...editingMaterial,
+                      description: e.target.value || null,
+                    })
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  rows={3}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Group
+                </label>
+                <select
+                  value={editingMaterial.material_group}
+                  onChange={(e) =>
+                    setEditingMaterial({
+                      ...editingMaterial,
+                      material_group: e.target.value,
+                    })
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  {materialGroups.slice(1).map((group) => (
+                    <option key={group} value={group}>
+                      {group}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="in_stock"
+                  checked={editingMaterial.in_stock}
+                  onChange={(e) =>
+                    setEditingMaterial({
+                      ...editingMaterial,
+                      in_stock: e.target.checked,
+                    })
+                  }
+                  className="mr-2"
+                />
+                <label
+                  htmlFor="in_stock"
+                  className="text-sm font-medium text-gray-700"
+                >
+                  In Stock
+                </label>
+              </div>
+            </div>
+            <div className="flex space-x-3 justify-end mt-6">
+              <Button
+                variant="outline"
+                onClick={() => setEditingMaterial(null)}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => updateMaterialMutation.mutate(editingMaterial)}
+                disabled={updateMaterialMutation.isPending}
+                className="bg-orange-500 hover:bg-orange-600"
+              >
+                {updateMaterialMutation.isPending ? "Saving..." : "Save"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="text-center">
+              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg
+                  className="w-6 h-6 text-red-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                  />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                Delete Material
+              </h3>
+              <p className="text-gray-600 mb-6">
+                Are you sure you want to delete the material "
+                {deleteConfirm.materialName}"? This action cannot be undone and
+                will also remove this material from all reports.
+              </p>
+              <div className="flex space-x-3 justify-center">
+                <Button
+                  variant="outline"
+                  onClick={() => setDeleteConfirm(null)}
+                  disabled={deleteMaterialMutation.isPending}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  className="bg-red-600 hover:bg-red-700 text-white"
+                  onClick={confirmDelete}
+                  disabled={deleteMaterialMutation.isPending}
+                >
+                  {deleteMaterialMutation.isPending
+                    ? "Deleting..."
+                    : "Delete Material"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Add Material Dialog */}
       <AddMaterialDialog

@@ -8,11 +8,14 @@ import { Badge } from "@/components/ui/badge";
 import { AddCommentDialog } from "./add-comment-dialog";
 import { supabase } from "@/lib/supabase/client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/contexts/auth-context";
+import { isAdmin } from "@/lib/roles";
 
 interface Comment {
   id: number;
   content: string;
   author_name: string;
+  author_id: string;
   created_at: string;
   updated_at: string;
   category: string;
@@ -39,8 +42,14 @@ export function CommentsOverview() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All Categories");
   const [selectedPriority, setSelectedPriority] = useState("All Priorities");
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    commentId: number;
+    commentContent: string;
+  } | null>(null);
+  const [editingComment, setEditingComment] = useState<Comment | null>(null);
   const queryClient = useQueryClient();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const { profile } = useAuth();
 
   const {
     data: comments = [],
@@ -101,6 +110,68 @@ export function CommentsOverview() {
     (c) => c.priority === "medium"
   ).length;
   const lowPriorityCount = comments.filter((c) => c.priority === "low").length;
+
+  // Delete mutation
+  const deleteCommentMutation = useMutation({
+    mutationFn: async (commentId: number) => {
+      const { error } = await supabase
+        .from("comments")
+        .delete()
+        .eq("id", commentId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["comments", "list"] });
+      setDeleteConfirm(null);
+    },
+    onError: (error: Error) => {
+      console.error("Error deleting comment:", error);
+      alert(`Failed to delete comment: ${error.message}`);
+    },
+  });
+
+  // Update mutation
+  const updateCommentMutation = useMutation({
+    mutationFn: async (updatedComment: Partial<Comment> & { id: number }) => {
+      const { error } = await supabase
+        .from("comments")
+        .update({
+          content: updatedComment.content,
+          category: updatedComment.category,
+          priority: updatedComment.priority,
+          location_detail: updatedComment.location_detail,
+        })
+        .eq("id", updatedComment.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["comments", "list"] });
+      setEditingComment(null);
+    },
+    onError: (error: Error) => {
+      console.error("Error updating comment:", error);
+      alert(`Failed to update comment: ${error.message}`);
+    },
+  });
+
+  // Check if user can edit/delete a comment
+  const canModifyComment = (comment: Comment) => {
+    if (!profile) return false;
+    // Admins can modify any comment
+    if (isAdmin(profile.role)) return true;
+    // Authors can modify their own comments
+    return comment.author_id === profile.id;
+  };
+
+  const handleDeleteComment = (commentId: number, commentContent: string) => {
+    setDeleteConfirm({ commentId, commentContent });
+  };
+
+  const confirmDelete = () => {
+    if (deleteConfirm) {
+      deleteCommentMutation.mutate(deleteConfirm.commentId);
+    }
+  };
 
   const addComment = useMutation({
     mutationFn: async (
@@ -398,11 +469,118 @@ export function CommentsOverview() {
                       </Badge>
                     )}
                   </div>
+                  {canModifyComment(comment) && (
+                    <div className="flex space-x-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setEditingComment(comment)}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-red-600 hover:text-red-700 hover:border-red-300"
+                        onClick={() =>
+                          handleDeleteComment(
+                            comment.id,
+                            comment.content.slice(0, 50) + "..."
+                          )
+                        }
+                        disabled={deleteCommentMutation.isPending}
+                      >
+                        Delete
+                      </Button>
+                    </div>
+                  )}
                 </div>
 
-                <p className="text-gray-900 mb-3 leading-relaxed">
-                  {comment.content}
-                </p>
+                {editingComment?.id === comment.id ? (
+                  <div className="space-y-3 mb-3">
+                    <textarea
+                      value={editingComment.content}
+                      onChange={(e) =>
+                        setEditingComment({
+                          ...editingComment,
+                          content: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      rows={3}
+                    />
+                    <div className="flex flex-wrap gap-2">
+                      <select
+                        value={editingComment.category}
+                        onChange={(e) =>
+                          setEditingComment({
+                            ...editingComment,
+                            category: e.target.value,
+                          })
+                        }
+                        className="px-2 py-1 border border-gray-300 rounded text-sm"
+                      >
+                        {categories.slice(1).map((category) => (
+                          <option key={category} value={category}>
+                            {category}
+                          </option>
+                        ))}
+                      </select>
+                      <select
+                        value={editingComment.priority}
+                        onChange={(e) =>
+                          setEditingComment({
+                            ...editingComment,
+                            priority: e.target.value as
+                              | "low"
+                              | "medium"
+                              | "high",
+                          })
+                        }
+                        className="px-2 py-1 border border-gray-300 rounded text-sm"
+                      >
+                        <option value="low">Low</option>
+                        <option value="medium">Medium</option>
+                        <option value="high">High</option>
+                      </select>
+                      <input
+                        type="text"
+                        placeholder="Location (optional)"
+                        value={editingComment.location_detail || ""}
+                        onChange={(e) =>
+                          setEditingComment({
+                            ...editingComment,
+                            location_detail: e.target.value || null,
+                          })
+                        }
+                        className="px-2 py-1 border border-gray-300 rounded text-sm"
+                      />
+                    </div>
+                    <div className="flex space-x-2">
+                      <Button
+                        size="sm"
+                        onClick={() =>
+                          updateCommentMutation.mutate(editingComment)
+                        }
+                        disabled={updateCommentMutation.isPending}
+                        className="bg-orange-500 hover:bg-orange-600"
+                      >
+                        {updateCommentMutation.isPending ? "Saving..." : "Save"}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setEditingComment(null)}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-gray-900 mb-3 leading-relaxed">
+                    {comment.content}
+                  </p>
+                )}
 
                 <div className="flex items-center justify-between text-xs text-gray-500">
                   <div className="flex items-center gap-4">
@@ -442,6 +620,56 @@ export function CommentsOverview() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Dialog */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="text-center">
+              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg
+                  className="w-6 h-6 text-red-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                  />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                Delete Comment
+              </h3>
+              <p className="text-gray-600 mb-6">
+                Are you sure you want to delete this comment: "
+                {deleteConfirm.commentContent}"? This action cannot be undone.
+              </p>
+              <div className="flex space-x-3 justify-center">
+                <Button
+                  variant="outline"
+                  onClick={() => setDeleteConfirm(null)}
+                  disabled={deleteCommentMutation.isPending}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  className="bg-red-600 hover:bg-red-700 text-white"
+                  onClick={confirmDelete}
+                  disabled={deleteCommentMutation.isPending}
+                >
+                  {deleteCommentMutation.isPending
+                    ? "Deleting..."
+                    : "Delete Comment"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Add Comment Dialog */}
       <AddCommentDialog

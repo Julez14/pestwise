@@ -3,8 +3,9 @@
 import { useRouter, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/auth-context";
+import { canManageUsers } from "@/lib/roles";
 
-const navigation = [
+const baseNavigation = [
   { name: "Reports", icon: "clipboard", href: "/reports" },
   { name: "Materials", icon: "package", href: "/materials" },
   { name: "Comments", icon: "message", href: "/comments" },
@@ -15,6 +16,15 @@ export function Sidebar() {
   const router = useRouter();
   const pathname = usePathname();
   const { signOut, profile, loading } = useAuth();
+
+  // Create dynamic navigation based on user role
+  const navigation = [
+    ...baseNavigation,
+    // Add Users tab only for supervisors and managers
+    ...(profile && canManageUsers(profile.role)
+      ? [{ name: "Users", icon: "users", href: "/users" }]
+      : []),
+  ];
 
   const handleLogout = async () => {
     try {
@@ -77,7 +87,8 @@ export function Sidebar() {
             (item.href === "/reports" && pathname.startsWith("/reports")) ||
             (item.href === "/materials" && pathname.startsWith("/materials")) ||
             (item.href === "/comments" && pathname.startsWith("/comments")) ||
-            (item.href === "/locations" && pathname.startsWith("/locations"));
+            (item.href === "/locations" && pathname.startsWith("/locations")) ||
+            (item.href === "/users" && pathname.startsWith("/users"));
 
           return (
             <button

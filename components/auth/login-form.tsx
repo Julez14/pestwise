@@ -4,7 +4,6 @@ import type React from "react";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -92,13 +91,7 @@ export function LoginForm() {
         </form>
         <div className="mt-6 text-center">
           <p className="text-sm text-muted-foreground">
-            Don't have an account?{" "}
-            <Link
-              href="/register"
-              className="text-orange-500 hover:underline font-medium"
-            >
-              Sign up
-            </Link>
+            Contact your supervisor or manager to create an account.
           </p>
         </div>
         <div className="mt-4 text-left">
@@ -110,13 +103,16 @@ export function LoginForm() {
               <strong>Test Emails:</strong>
             </p>
             <ul className="ml-4 mt-1 space-y-1">
-              <li>emily.davis@pestcontrol.com</li>
-              <li>mike.chen@pestcontrol.com</li>
-              <li>sarah.johnson@pestcontrol.com</li>
-              <li>john.doe@pestcontrol.com</li>
+              <li>emily.davis@pestcontrol.com (Manager)</li>
+              <li>mike.chen@pestcontrol.com (Technician)</li>
+              <li>sarah.johnson@pestcontrol.com (Supervisor)</li>
+              <li>john.doe@pestcontrol.com (Technician)</li>
+              <li>admin@pestcontrol.com (Administrator)</li>
             </ul>
             <p className="mt-2">
-              <strong>Password:</strong> TestPassword123!
+              <strong>General Password:</strong> TestPassword123!
+              <br />
+              <strong>Admin Password:</strong> AdminPassword123!
             </p>
           </div>
         </div>

@@ -2,7 +2,7 @@
 
 import type React from "react";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase/client";
@@ -15,6 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { isAdmin } from "@/lib/roles";
+import SignatureCanvas from "react-signature-canvas";
 
 interface PestFinding {
   id: string;
@@ -44,6 +45,9 @@ interface ExistingReport {
   status: string;
   comments: string | null;
   author_id: string;
+  time_in?: string | null;
+  time_out?: string | null;
+  customer_name?: string | null;
 }
 
 interface EditReportFormProps {
@@ -61,6 +65,9 @@ export function EditReportForm({ reportId }: EditReportFormProps) {
     description: "",
     comments: "",
     status: "draft" as "draft" | "completed",
+    time_in: "",
+    time_out: "",
+    customer_name: "",
   });
 
   const [pestFindings, setPestFindings] = useState<PestFinding[]>([]);
@@ -75,6 +82,9 @@ export function EditReportForm({ reportId }: EditReportFormProps) {
 
   const [selectedMaterials, setSelectedMaterials] = useState<number[]>([]);
   const [isAuthorized, setIsAuthorized] = useState(false);
+  const techSigRef = useRef<SignatureCanvas | null>(null);
+  const custSigRef = useRef<SignatureCanvas | null>(null);
+  const [savingSignatures, setSavingSignatures] = useState(false);
 
   // Fetch existing report data
   const { data: existingReport, isLoading: isLoadingReport } =
@@ -143,6 +153,13 @@ export function EditReportForm({ reportId }: EditReportFormProps) {
         description: existingReport.description || "",
         comments: existingReport.comments || "",
         status: existingReport.status as "draft" | "completed",
+        time_in: existingReport.time_in
+          ? new Date(existingReport.time_in).toISOString().slice(0, 16)
+          : "",
+        time_out: existingReport.time_out
+          ? new Date(existingReport.time_out).toISOString().slice(0, 16)
+          : "",
+        customer_name: existingReport.customer_name || "",
       });
     }
   }, [existingReport]);
@@ -250,6 +267,9 @@ export function EditReportForm({ reportId }: EditReportFormProps) {
         description: string;
         comments: string;
         status: "draft" | "completed";
+        time_in?: string;
+        time_out?: string;
+        customer_name?: string;
       };
       pestFindings: PestFinding[];
       selectedMaterials: number[];
@@ -263,6 +283,13 @@ export function EditReportForm({ reportId }: EditReportFormProps) {
         description: formData.description || null,
         comments: formData.comments || null,
         status: formData.status,
+        time_in: formData.time_in
+          ? new Date(formData.time_in).toISOString()
+          : null,
+        time_out: formData.time_out
+          ? new Date(formData.time_out).toISOString()
+          : null,
+        customer_name: formData.customer_name || null,
       };
 
       // Update report
@@ -326,6 +353,15 @@ export function EditReportForm({ reportId }: EditReportFormProps) {
       return;
     }
 
+    if (formData.time_in && formData.time_out) {
+      const tin = new Date(formData.time_in).getTime();
+      const tout = new Date(formData.time_out).getTime();
+      if (Number.isFinite(tin) && Number.isFinite(tout) && tout < tin) {
+        alert("Time out cannot be earlier than time in.");
+        return;
+      }
+    }
+
     updateReportMutation.mutate({
       formData: { ...formData, status },
       pestFindings,
@@ -348,6 +384,70 @@ export function EditReportForm({ reportId }: EditReportFormProps) {
         return "bg-blue-100 text-blue-800";
       default:
         return "bg-gray-100 text-gray-800";
+    }
+  };
+
+  const applyMySignature = async () => {
+    if (!profile) return alert("Not authenticated");
+    try {
+      const { data: me } = await supabase
+        .from("profiles")
+        .select("signature_url")
+        .eq("id", profile.id)
+        .single();
+      if (!me?.signature_url) {
+        alert("No saved signature found in your profile");
+        return;
+      }
+      const { error } = await supabase
+        .from("reports")
+        .update({
+          technician_signature_url: me.signature_url,
+          signed_at: new Date().toISOString(),
+        })
+        .eq("id", reportId);
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ["report", reportId] });
+      alert("Technician signature applied");
+    } catch (e: any) {
+      alert(e.message || "Failed to apply signature");
+    }
+  };
+
+  const saveCustomerSignature = async () => {
+    try {
+      if (!custSigRef.current || custSigRef.current.isEmpty()) {
+        alert("Please draw the customer signature first");
+        return;
+      }
+      setSavingSignatures(true);
+      const dataUrl = custSigRef.current
+        .getTrimmedCanvas()
+        .toDataURL("image/png");
+      const blob = await (await fetch(dataUrl)).blob();
+      const filePath = `report/${reportId}/customer_signature_${Date.now()}.png`;
+      const { data, error } = await supabase.storage
+        .from("signatures")
+        .upload(filePath, blob, { upsert: true });
+      if (error) throw error;
+      const { data: pub } = await supabase.storage
+        .from("signatures")
+        .getPublicUrl(data.path);
+      const publicUrl = pub.publicUrl;
+      const { error: upErr } = await supabase
+        .from("reports")
+        .update({
+          customer_signature_url: publicUrl,
+          customer_name: formData.customer_name || null,
+        })
+        .eq("id", reportId);
+      if (upErr) throw upErr;
+      queryClient.invalidateQueries({ queryKey: ["report", reportId] });
+      alert("Customer signature saved");
+    } catch (e: any) {
+      alert(e.message || "Failed to save customer signature");
+    } finally {
+      setSavingSignatures(false);
     }
   };
 
@@ -438,6 +538,30 @@ export function EditReportForm({ reportId }: EditReportFormProps) {
                   setFormData({ ...formData, unit: e.target.value })
                 }
               />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="time_in">Time In</Label>
+                <Input
+                  id="time_in"
+                  type="datetime-local"
+                  value={formData.time_in}
+                  onChange={(e) =>
+                    setFormData({ ...formData, time_in: e.target.value })
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="time_out">Time Out</Label>
+                <Input
+                  id="time_out"
+                  type="datetime-local"
+                  value={formData.time_out}
+                  onChange={(e) =>
+                    setFormData({ ...formData, time_out: e.target.value })
+                  }
+                />
+              </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="description">Description</Label>
@@ -661,6 +785,88 @@ export function EditReportForm({ reportId }: EditReportFormProps) {
                 )}
               </TabsContent>
             </Tabs>
+          </CardContent>
+        </Card>
+
+        {/* Signatures */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Signatures</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Technician Signature</Label>
+                <p className="text-xs text-gray-500">
+                  Use your saved signature from your Profile page or sign below.
+                </p>
+                <div className="border rounded">
+                  <SignatureCanvas
+                    ref={techSigRef as any}
+                    penColor="black"
+                    canvasProps={{
+                      width: 600,
+                      height: 120,
+                      className: "sigCanvas",
+                    }}
+                  />
+                </div>
+                <div className="flex gap-2 mt-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => techSigRef.current?.clear()}
+                  >
+                    Clear
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={applyMySignature}
+                  >
+                    Use Saved Signature
+                  </Button>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="customer_name">Customer Name</Label>
+                <Input
+                  id="customer_name"
+                  value={formData.customer_name}
+                  onChange={(e) =>
+                    setFormData({ ...formData, customer_name: e.target.value })
+                  }
+                />
+                <p className="text-xs text-gray-500 mt-2">Customer Signature</p>
+                <div className="border rounded">
+                  <SignatureCanvas
+                    ref={custSigRef as any}
+                    penColor="black"
+                    canvasProps={{
+                      width: 600,
+                      height: 120,
+                      className: "sigCanvas",
+                    }}
+                  />
+                </div>
+                <div className="flex gap-2 mt-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => custSigRef.current?.clear()}
+                  >
+                    Clear
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={saveCustomerSignature}
+                    disabled={savingSignatures}
+                  >
+                    {savingSignatures ? "Saving..." : "Save Customer Signature"}
+                  </Button>
+                </div>
+              </div>
+            </div>
           </CardContent>
         </Card>
 

@@ -8,6 +8,8 @@ interface Profile {
   id: string;
   name: string;
   role: string;
+  license_number?: string | null;
+  signature_url?: string | null;
   created_at: string;
   updated_at: string;
 }

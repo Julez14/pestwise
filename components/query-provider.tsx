@@ -13,7 +13,8 @@ export function QueryProvider({ children }: PropsWithChildren) {
             gcTime: 30 * 60 * 1000, // 30 minutes
             refetchOnWindowFocus: false,
             refetchOnReconnect: false,
-            refetchOnMount: false,
+            refetchOnMount: true,
+            networkMode: "always",
             retry: 1,
           },
           mutations: {

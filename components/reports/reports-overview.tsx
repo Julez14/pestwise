@@ -364,30 +364,125 @@ export function ReportsOverview() {
                       <Badge className={getStatusColor(report.status)}>
                         {getStatusLabel(report.status)}
                       </Badge>
-                      {canModifyReport(report) && (
-                        <div className="flex space-x-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() =>
-                              router.push(`/reports/edit/${report.id}`)
+                      <div className="flex space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={async () => {
+                            try {
+                              const days = 7;
+                              const noExpiry = false;
+                              const res = await fetch(
+                                `/api/reports/${report.id}/share`,
+                                {
+                                  method: "POST",
+                                  headers: {
+                                    "Content-Type": "application/json",
+                                  },
+                                  body: JSON.stringify({ days, noExpiry }),
+                                }
+                              );
+                              const data = await res.json();
+                              if (!res.ok)
+                                throw new Error(
+                                  data.error || "Failed to create link"
+                                );
+
+                              const shareUrl = data.shareUrl as string;
+
+                              // Prefer native share when available
+                              if (
+                                typeof navigator !== "undefined" &&
+                                (navigator as any).share
+                              ) {
+                                try {
+                                  await (navigator as any).share({
+                                    title: "Report",
+                                    url: shareUrl,
+                                  });
+                                  return;
+                                } catch {
+                                  // fall through
+                                }
+                              }
+
+                              // Clipboard API
+                              try {
+                                if (
+                                  navigator.clipboard &&
+                                  typeof navigator.clipboard.writeText ===
+                                    "function"
+                                ) {
+                                  await navigator.clipboard.writeText(shareUrl);
+                                  alert(
+                                    `Share link copied to clipboard${
+                                      noExpiry
+                                        ? " (no expiry)"
+                                        : ` (expires in ${days} days)`
+                                    }`
+                                  );
+                                  return;
+                                }
+                                throw new Error("Clipboard API not available");
+                              } catch (_) {
+                                // Fallback to execCommand copy
+                                const textarea =
+                                  document.createElement("textarea");
+                                textarea.value = shareUrl;
+                                textarea.style.position = "fixed";
+                                textarea.style.left = "-9999px";
+                                document.body.appendChild(textarea);
+                                textarea.focus();
+                                textarea.select();
+                                let copied = false;
+                                try {
+                                  copied = document.execCommand("copy");
+                                } catch {}
+                                document.body.removeChild(textarea);
+                                if (copied) {
+                                  alert(
+                                    `Share link copied to clipboard${
+                                      noExpiry
+                                        ? " (no expiry)"
+                                        : ` (expires in ${days} days)`
+                                    }`
+                                  );
+                                } else {
+                                  window.prompt("Copy this link:", shareUrl);
+                                }
+                              }
+                            } catch (e: any) {
+                              alert(e.message || "Failed to create share link");
                             }
-                          >
-                            Edit
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="text-red-600 hover:text-red-700 hover:border-red-300"
-                            onClick={() =>
-                              handleDeleteReport(report.id, report.title)
-                            }
-                            disabled={deleteReportMutation.isPending}
-                          >
-                            Delete
-                          </Button>
-                        </div>
-                      )}
+                          }}
+                        >
+                          Share
+                        </Button>
+                        {canModifyReport(report) && (
+                          <>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() =>
+                                router.push(`/reports/edit/${report.id}`)
+                              }
+                            >
+                              Edit
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-red-600 hover:text-red-700 hover:border-red-300"
+                              onClick={() =>
+                                handleDeleteReport(report.id, report.title)
+                              }
+                              disabled={deleteReportMutation.isPending}
+                            >
+                              Delete
+                            </Button>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>

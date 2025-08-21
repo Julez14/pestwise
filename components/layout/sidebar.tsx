@@ -24,6 +24,14 @@ export function Sidebar() {
     ...(profile && canManageUsers(profile.role)
       ? [{ name: "Users", icon: "users", href: "/users" }]
       : []),
+    // Branding settings for managers/admins
+    ...(profile && (profile.role === "manager" || profile.role === "admin")
+      ? [{ name: "Branding", icon: "settings", href: "/settings/branding" }]
+      : []),
+    // Personal profile
+    ...(profile
+      ? [{ name: "My Profile", icon: "users", href: "/profile" }]
+      : []),
   ];
 
   const handleLogout = async () => {

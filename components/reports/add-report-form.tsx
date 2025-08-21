@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import SignatureCanvas from "react-signature-canvas";
 
 interface PestFinding {
   id: string;
@@ -44,6 +45,9 @@ export function AddReportForm() {
     description: "",
     comments: "",
     status: "draft" as "draft" | "completed",
+    time_in: "",
+    time_out: "",
+    customer_name: "",
   });
 
   const [pestFindings, setPestFindings] = useState<PestFinding[]>([]);
@@ -141,6 +145,9 @@ export function AddReportForm() {
         description: string;
         comments: string;
         status: "draft" | "completed";
+        time_in?: string;
+        time_out?: string;
+        customer_name?: string;
       };
       pestFindings: PestFinding[];
       selectedMaterials: number[];
@@ -155,6 +162,13 @@ export function AddReportForm() {
         comments: formData.comments || null,
         status: formData.status,
         author_id: profile.id,
+        time_in: formData.time_in
+          ? new Date(formData.time_in).toISOString()
+          : null,
+        time_out: formData.time_out
+          ? new Date(formData.time_out).toISOString()
+          : null,
+        customer_name: formData.customer_name || null,
       };
 
       const { data: newReport, error: reportError } = await supabase
@@ -210,6 +224,15 @@ export function AddReportForm() {
     if (!formData.title || !formData.location_id) {
       alert("Please fill in the report title and location.");
       return;
+    }
+
+    if (formData.time_in && formData.time_out) {
+      const tin = new Date(formData.time_in).getTime();
+      const tout = new Date(formData.time_out).getTime();
+      if (Number.isFinite(tin) && Number.isFinite(tout) && tout < tin) {
+        alert("Time out cannot be earlier than time in.");
+        return;
+      }
     }
 
     addReportMutation.mutate({
@@ -295,6 +318,30 @@ export function AddReportForm() {
                     </option>
                   ))}
                 </select>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="time_in">Time In</Label>
+                <Input
+                  id="time_in"
+                  type="datetime-local"
+                  value={formData.time_in}
+                  onChange={(e) =>
+                    setFormData({ ...formData, time_in: e.target.value })
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="time_out">Time Out</Label>
+                <Input
+                  id="time_out"
+                  type="datetime-local"
+                  value={formData.time_out}
+                  onChange={(e) =>
+                    setFormData({ ...formData, time_out: e.target.value })
+                  }
+                />
               </div>
             </div>
             <div className="space-y-2">
@@ -530,6 +577,34 @@ export function AddReportForm() {
                 )}
               </TabsContent>
             </Tabs>
+          </CardContent>
+        </Card>
+
+        {/* Signatures */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Signatures</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Technician Signature</Label>
+                <p className="text-xs text-gray-500">
+                  You can apply your saved signature from your profile or sign
+                  on the Edit page after saving.
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="customer_name">Customer Name</Label>
+                <Input
+                  id="customer_name"
+                  value={formData.customer_name}
+                  onChange={(e) =>
+                    setFormData({ ...formData, customer_name: e.target.value })
+                  }
+                />
+              </div>
+            </div>
           </CardContent>
         </Card>
 

@@ -3,11 +3,12 @@ import { createClient } from "@/lib/supabase/server";
 
 export async function POST(
     request: Request,
-    { params }: { params: { id: string } },
+    { params }: { params: Promise<{ id: string }> },
 ) {
     try {
         const supabase = await createClient();
-        const reportId = parseInt(params.id, 10);
+        const { id } = await params;
+        const reportId = parseInt(id, 10);
         const body = await request.json();
         const { noExpiry = false, days = 7 } = body || {};
 

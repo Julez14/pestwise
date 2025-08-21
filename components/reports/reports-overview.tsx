@@ -77,6 +77,12 @@ export function ReportsOverview() {
   // Delete mutation
   const deleteReportMutation = useMutation({
     mutationFn: async (reportId: number) => {
+      // Remove child rows first to avoid FK/RLS edge cases
+      await Promise.all([
+        supabase.from("pest_findings").delete().eq("report_id", reportId),
+        supabase.from("report_materials").delete().eq("report_id", reportId),
+      ]);
+
       const { error } = await supabase
         .from("reports")
         .delete()
